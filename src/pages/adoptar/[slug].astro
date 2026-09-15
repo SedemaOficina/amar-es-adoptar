@@ -1,0 +1,77 @@
+---
+/* Marcador de posición del formulario de solicitud (etapa 4).
+   Existe desde ahora para que el recorrido del portal esté completo y se
+   pueda enseñar de punta a punta, y para dejar documentado en el propio
+   sitio qué tiene que ocurrir aquí. */
+import Base from '../../layouts/Base.astro';
+import { obtenerEjemplares, etiqueta } from '../../datos/ejemplares.js';
+
+export function getStaticPaths() {
+  return obtenerEjemplares().map((ejemplar) => ({
+    params: { slug: ejemplar.slug },
+    props: { ejemplar },
+  }));
+}
+
+const { ejemplar } = Astro.props;
+---
+<Base titulo={`Solicitud de adopción · ${ejemplar.nombre}`}>
+  <div class="contenedor pendiente-etapa">
+    <p class="regresar">
+      <a href={`/seres-sintientes/${ejemplar.slug}`}>‹ Regresar a la ficha de {ejemplar.nombre}</a>
+    </p>
+
+    <h1>Solicitud de adopción</h1>
+
+    <div class="resumen">
+      <p class="rotulo">Ser sintiente elegido</p>
+      <p class="nombre">{ejemplar.nombre}</p>
+      <p class="atributos">
+        {etiqueta('edad', ejemplar.edad_clave)} ·
+        {etiqueta('sexo', ejemplar.sexo_clave)} ·
+        {etiqueta('talla', ejemplar.talla_clave)}
+      </p>
+    </div>
+
+    <div class="pendiente">
+      <p><strong>Esta pantalla todavía no está construida.</strong> Corresponde a la etapa 4.</p>
+      <p>Aquí, al llegar desde el botón «Adóptame», el sistema debe:</p>
+      <ol>
+        <li>Redirigir a la autenticación de Llave CDMX.</li>
+        <li>Al regresar, precargar nombre, apellidos y CURP de la cuenta, sin permitir edición.</li>
+        <li>Precargar domicilio y contacto, permitiendo que la persona los corrija.</li>
+        <li>Mostrar el cuestionario de valoración de nueve preguntas.</li>
+        <li>Al enviar, devolver un folio de confirmación con formato AAAA-NNNNNN.</li>
+      </ol>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .pendiente-etapa { padding-block: 22px 56px; max-width: 46rem; }
+  .regresar { margin: 0 0 26px; }
+  .regresar a {
+    font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--gris-claro); text-decoration: none;
+  }
+  .regresar a:hover { color: var(--guinda); }
+
+  h1 { color: var(--guinda); font-size: 1.75rem; margin: 0 0 24px; }
+
+  .resumen {
+    border: 1px solid var(--linea); border-radius: 10px;
+    padding: 18px 20px; margin-bottom: 28px; background: var(--crema);
+  }
+  .resumen .rotulo {
+    font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--dorado-texto); margin: 0;
+  }
+  .resumen .nombre { font-family: var(--titulos); font-size: 1.25rem; font-weight: 700; margin: 4px 0 2px; }
+  .resumen .atributos { margin: 0; color: var(--gris); font-size: 0.9375rem; }
+
+  .pendiente {
+    border-left: 3px solid var(--dorado); padding: 4px 0 4px 18px; color: var(--gris);
+  }
+  .pendiente ol { padding-left: 20px; }
+  .pendiente li { margin-bottom: 6px; }
+</style>

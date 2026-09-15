@@ -1,0 +1,184 @@
+---
+/* Catálogo público.
+   Las tarjetas se generan al construir el sitio y el filtrado y la
+   paginación ocurren en el navegador: son treinta registros y no vale la
+   pena un servidor para eso. En la etapa 3, cuando sean cientos, el
+   filtrado se mueve a la API y esta página sólo cambia de origen. */
+import Base from '../../layouts/Base.astro';
+import TarjetaEjemplar from '../../components/TarjetaEjemplar.astro';
+import { obtenerEjemplares, catalogos } from '../../datos/ejemplares.js';
+
+const ejemplares = obtenerEjemplares();
+const POR_PAGINA = 16;
+---
+<Base titulo="Conoce a los seres sintientes en adopción">
+  <section class="franja-crema">
+    <div class="contenedor">
+      <p class="antetitulo">Seres sintientes rescatados en la Ciudad de México</p>
+
+      <p class="entrada">
+        Cada uno tiene una historia distinta, pero todos necesitan lo mismo:
+        un hogar seguro y mucho amor.
+      </p>
+
+      <p class="nota-nombre">
+        El nombre que aparece en esta ficha fue asignado para fines de identificación.
+        La persona adoptante podrá elegir el nombre definitivo de su nuevo compañero.
+      </p>
+
+      <div class="zona-filtros">
+        <button
+          type="button"
+          class="boton boton-linea"
+          id="abrir-filtros"
+          aria-expanded="false"
+          aria-controls="panel-filtros"
+        >Filtrar por</button>
+      </div>
+
+      <form class="panel-filtros" id="panel-filtros" hidden>
+        <div class="campos">
+          <div>
+            <label for="f-edad">Edad</label>
+            <select id="f-edad" name="edad">
+              <option value="">Todas</option>
+              {catalogos.edad.map((v) => <option value={v.clave}>{v.etiqueta}</option>)}
+            </select>
+          </div>
+          <div>
+            <label for="f-sexo">Soy</label>
+            <select id="f-sexo" name="sexo">
+              <option value="">Todos</option>
+              {catalogos.sexo.map((v) => <option value={v.clave}>{v.etiqueta}</option>)}
+            </select>
+          </div>
+          <div>
+            <label for="f-talla">Talla actual</label>
+            <select id="f-talla" name="talla">
+              <option value="">Todas</option>
+              {catalogos.talla.map((v) => <option value={v.clave}>{v.etiqueta}</option>)}
+            </select>
+          </div>
+          <div>
+            <label for="f-nombre">Nombre</label>
+            <input id="f-nombre" name="nombre" type="search" placeholder="Buscar por nombre" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="acciones-filtros">
+          <button type="reset" class="boton boton-linea">Limpiar filtros</button>
+        </div>
+      </form>
+
+      <p class="conteo" id="conteo" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <div class="contenedor">
+    <div class="rejilla" id="rejilla">
+      {ejemplares.map((e) => <TarjetaEjemplar ejemplar={e} />)}
+    </div>
+
+    <p class="sin-resultados" id="sin-resultados" hidden>
+      No hay seres sintientes que coincidan con lo que buscas. Prueba con otros filtros.
+    </p>
+
+    <nav class="paginacion" id="paginacion" aria-label="Paginación del catálogo"></nav>
+  </div>
+</Base>
+
+<script define:vars={{ POR_PAGINA }}>
+  // Elementos de la página
+  const rejilla = document.getElementById('rejilla');
+  const tarjetas = Array.from(rejilla.querySelectorAll('[data-ejemplar]'));
+  const panel = document.getElementById('panel-filtros');
+  const abrir = document.getElementById('abrir-filtros');
+  const conteo = document.getElementById('conteo');
+  const vacio = document.getElementById('sin-resultados');
+  const paginacion = document.getElementById('paginacion');
+
+  let pagina = 1;
+
+  // Quita acentos y mayúsculas, para que "Guero" encuentre a "Güero".
+  const normalizar = (t) =>
+    t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+  // Mostrar u ocultar el panel de filtros
+  abrir.addEventListener('click', () => {
+    const visible = !panel.hidden;
+    panel.hidden = visible;
+    abrir.setAttribute('aria-expanded', String(!visible));
+  });
+
+  function filtradas() {
+    const edad = panel.elements.edad.value;
+    const sexo = panel.elements.sexo.value;
+    const talla = panel.elements.talla.value;
+    const texto = normalizar(panel.elements.nombre.value);
+
+    return tarjetas.filter((t) => {
+      if (edad && t.dataset.edad !== edad) return false;
+      if (sexo && t.dataset.sexo !== sexo) return false;
+      if (talla && t.dataset.talla !== talla) return false;
+      if (texto && !normalizar(t.dataset.nombre).includes(texto)) return false;
+      return true;
+    });
+  }
+
+  function pintar() {
+    const visibles = filtradas();
+    const paginas = Math.max(1, Math.ceil(visibles.length / POR_PAGINA));
+    if (pagina > paginas) pagina = paginas;
+
+    const desde = (pagina - 1) * POR_PAGINA;
+    const enPagina = visibles.slice(desde, desde + POR_PAGINA);
+
+    tarjetas.forEach((t) => { t.hidden = true; });
+    enPagina.forEach((t) => { t.hidden = false; });
+
+    vacio.hidden = visibles.length !== 0;
+
+    conteo.textContent = visibles.length === 0
+      ? 'Ningún resultado'
+      : `${visibles.length} ${visibles.length === 1 ? 'ser sintiente' : 'seres sintientes'} en adopción` +
+        (paginas > 1 ? ` · página ${pagina} de ${paginas}` : '');
+
+    pintarPaginacion(paginas);
+  }
+
+  function pintarPaginacion(paginas) {
+    paginacion.innerHTML = '';
+    if (paginas <= 1) return;
+
+    const boton = (texto, destino, opciones = {}) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = texto;
+      if (opciones.actual) b.setAttribute('aria-current', 'page');
+      if (opciones.desactivado) b.disabled = true;
+      if (opciones.etiqueta) b.setAttribute('aria-label', opciones.etiqueta);
+      b.addEventListener('click', () => {
+        pagina = destino;
+        pintar();
+        rejilla.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      paginacion.appendChild(b);
+    };
+
+    boton('‹', pagina - 1, { desactivado: pagina === 1, etiqueta: 'Página anterior' });
+    for (let p = 1; p <= paginas; p++) {
+      boton(String(p), p, { actual: p === pagina, etiqueta: `Página ${p}` });
+    }
+    boton('›', pagina + 1, { desactivado: pagina === paginas, etiqueta: 'Página siguiente' });
+  }
+
+  // Cualquier cambio en los filtros regresa a la primera página
+  panel.addEventListener('input', () => { pagina = 1; pintar(); });
+  panel.addEventListener('reset', () => {
+    pagina = 1;
+    // El reset se aplica después de este evento; esperamos un tic.
+    setTimeout(pintar, 0);
+  });
+
+  pintar();
+</script>

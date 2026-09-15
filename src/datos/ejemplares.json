@@ -1,0 +1,851 @@
+{
+  "_aviso": "DATOS FICTICIOS. Generados para desarrollo. No corresponden a animales reales. Se retiran al conectar la base real en la etapa 2.",
+  "es_ficticio": true,
+  "generado_en": "2026-09-15",
+  "catalogos": {
+    "centro": [
+      {
+        "clave": "BVA",
+        "etiqueta": "BRIGADA DE VIGILANCIA ANIMAL",
+        "orden": 1
+      },
+      {
+        "clave": "AJUSCO",
+        "etiqueta": "AJUSCO",
+        "orden": 2
+      },
+      {
+        "clave": "GALEANA",
+        "etiqueta": "DEPORTIVO GALEANA",
+        "orden": 3
+      }
+    ],
+    "edad": [
+      {
+        "clave": "JOVEN",
+        "etiqueta": "JOVEN (1-4)",
+        "orden": 1
+      },
+      {
+        "clave": "ADULTO",
+        "etiqueta": "ADULTO (5-7)",
+        "orden": 2
+      },
+      {
+        "clave": "GERIATRA",
+        "etiqueta": "GERIATRA (8+)",
+        "orden": 3
+      }
+    ],
+    "sexo": [
+      {
+        "clave": "HEMBRA",
+        "etiqueta": "HEMBRA",
+        "orden": 1
+      },
+      {
+        "clave": "MACHO",
+        "etiqueta": "MACHO",
+        "orden": 2
+      }
+    ],
+    "talla": [
+      {
+        "clave": "CHICO",
+        "etiqueta": "CHICO",
+        "orden": 1
+      },
+      {
+        "clave": "MEDIANO",
+        "etiqueta": "MEDIANO",
+        "orden": 2
+      },
+      {
+        "clave": "GRANDE",
+        "etiqueta": "GRANDE",
+        "orden": 3
+      }
+    ]
+  },
+  "ejemplares": [
+    {
+      "id": 1,
+      "slug": "canela-5279",
+      "centro_origen_clave": "AJUSCO",
+      "folio_interno": "00120",
+      "centro_actual_clave": "AJUSCO",
+      "nombre": "Canela",
+      "edad_clave": "ADULTO",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "MEDIANO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-05.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Canela"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-06.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Canela"
+        },
+        {
+          "orden": 3,
+          "archivo": "/imagenes/muestra/muestra-07.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Canela"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "slug": "frijol-1f1d",
+      "centro_origen_clave": "BVA",
+      "folio_interno": "00120",
+      "centro_actual_clave": "BVA",
+      "nombre": "Frijol",
+      "edad_clave": "JOVEN",
+      "sexo_clave": "MACHO",
+      "talla_clave": "CHICO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-08.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Frijol"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-01.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Frijol"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "slug": "nube-3fc6",
+      "centro_origen_clave": "GALEANA",
+      "folio_interno": "00120",
+      "centro_actual_clave": "GALEANA",
+      "nombre": "Nube",
+      "edad_clave": "JOVEN",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "MEDIANO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-03.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Nube"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-04.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Nube"
+        },
+        {
+          "orden": 3,
+          "archivo": "/imagenes/muestra/muestra-05.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Nube"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "slug": "mapache-3da4",
+      "centro_origen_clave": "AJUSCO",
+      "folio_interno": "00127",
+      "centro_actual_clave": "AJUSCO",
+      "nombre": "Mapache",
+      "edad_clave": "ADULTO",
+      "sexo_clave": "MACHO",
+      "talla_clave": "GRANDE",
+      "semaforo": "AMARILLO",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-06.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Mapache"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "slug": "chabela-40a5",
+      "centro_origen_clave": "BVA",
+      "folio_interno": "00127",
+      "centro_actual_clave": "BVA",
+      "nombre": "Chabela",
+      "edad_clave": "GERIATRA",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "CHICO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-01.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Chabela"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-02.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Chabela"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "slug": "ojon-5c8d",
+      "centro_origen_clave": "GALEANA",
+      "folio_interno": "00127",
+      "centro_actual_clave": "GALEANA",
+      "nombre": "Ojón",
+      "edad_clave": "ADULTO",
+      "sexo_clave": "MACHO",
+      "talla_clave": "GRANDE",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-04.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Ojón"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-05.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Ojón"
+        },
+        {
+          "orden": 3,
+          "archivo": "/imagenes/muestra/muestra-06.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Ojón"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "slug": "blanca-da04",
+      "centro_origen_clave": "AJUSCO",
+      "folio_interno": "00134",
+      "centro_actual_clave": "AJUSCO",
+      "nombre": "Blanca",
+      "edad_clave": "ADULTO",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "MEDIANO",
+      "semaforo": "VERDE",
+      "condicion": "EN_PROCESO",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-07.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Blanca"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-08.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Blanca"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "slug": "orion-7427",
+      "centro_origen_clave": "BVA",
+      "folio_interno": "00134",
+      "centro_actual_clave": "BVA",
+      "nombre": "Orión",
+      "edad_clave": "GERIATRA",
+      "sexo_clave": "MACHO",
+      "talla_clave": "GRANDE",
+      "semaforo": "AMARILLO",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-02.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Orión"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "slug": "cejitas-6231",
+      "centro_origen_clave": "GALEANA",
+      "folio_interno": "00134",
+      "centro_actual_clave": "GALEANA",
+      "nombre": "Cejitas",
+      "edad_clave": "JOVEN",
+      "sexo_clave": "MACHO",
+      "talla_clave": "MEDIANO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-05.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Cejitas"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-06.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Cejitas"
+        },
+        {
+          "orden": 3,
+          "archivo": "/imagenes/muestra/muestra-07.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Cejitas"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "slug": "moka-9388",
+      "centro_origen_clave": "AJUSCO",
+      "folio_interno": "00141",
+      "centro_actual_clave": "GALEANA",
+      "nombre": "Moka",
+      "edad_clave": "ADULTO",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "MEDIANO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-08.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Moka"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-01.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Moka"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "slug": "tostada-b456",
+      "centro_origen_clave": "BVA",
+      "folio_interno": "00141",
+      "centro_actual_clave": "BVA",
+      "nombre": "Tostada",
+      "edad_clave": "JOVEN",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "CHICO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-03.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Tostada"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "slug": "bigotes-df39",
+      "centro_origen_clave": "GALEANA",
+      "folio_interno": "00141",
+      "centro_actual_clave": "GALEANA",
+      "nombre": "Bigotes",
+      "edad_clave": "GERIATRA",
+      "sexo_clave": "MACHO",
+      "talla_clave": "MEDIANO",
+      "semaforo": "AMARILLO",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-06.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Bigotes"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-07.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Bigotes"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "slug": "pinto-778d",
+      "centro_origen_clave": "AJUSCO",
+      "folio_interno": "00148",
+      "centro_actual_clave": "AJUSCO",
+      "nombre": "Pinto",
+      "edad_clave": "ADULTO",
+      "sexo_clave": "MACHO",
+      "talla_clave": "GRANDE",
+      "semaforo": "VERDE",
+      "condicion": "ADOPTADO",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-01.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Pinto"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-02.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Pinto"
+        },
+        {
+          "orden": 3,
+          "archivo": "/imagenes/muestra/muestra-03.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Pinto"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "slug": "luna-4eb7",
+      "centro_origen_clave": "BVA",
+      "folio_interno": "00148",
+      "centro_actual_clave": "BVA",
+      "nombre": "Luna",
+      "edad_clave": "JOVEN",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "GRANDE",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-04.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Luna"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-05.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Luna"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "slug": "chamoy-e031",
+      "centro_origen_clave": "GALEANA",
+      "folio_interno": "00148",
+      "centro_actual_clave": "GALEANA",
+      "nombre": "Chamoy",
+      "edad_clave": "ADULTO",
+      "sexo_clave": "MACHO",
+      "talla_clave": "CHICO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-07.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Chamoy"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "slug": "pecas-1ac3",
+      "centro_origen_clave": "AJUSCO",
+      "folio_interno": "00155",
+      "centro_actual_clave": "AJUSCO",
+      "nombre": "Pecas",
+      "edad_clave": "ADULTO",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "MEDIANO",
+      "semaforo": "AMARILLO",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-02.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Pecas"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-03.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Pecas"
+        },
+        {
+          "orden": 3,
+          "archivo": "/imagenes/muestra/muestra-04.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Pecas"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "slug": "rufo-7080",
+      "centro_origen_clave": "BVA",
+      "folio_interno": "00155",
+      "centro_actual_clave": "BVA",
+      "nombre": "Rufo",
+      "edad_clave": "GERIATRA",
+      "sexo_clave": "MACHO",
+      "talla_clave": "GRANDE",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": []
+    },
+    {
+      "id": 18,
+      "slug": "milanesa-e0a0",
+      "centro_origen_clave": "GALEANA",
+      "folio_interno": "00155",
+      "centro_actual_clave": "GALEANA",
+      "nombre": "Milanesa",
+      "edad_clave": "JOVEN",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "MEDIANO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-08.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Milanesa"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-01.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Milanesa"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "slug": "tlacuache-ec22",
+      "centro_origen_clave": "AJUSCO",
+      "folio_interno": "00162",
+      "centro_actual_clave": "AJUSCO",
+      "nombre": "Tlacuache",
+      "edad_clave": "ADULTO",
+      "sexo_clave": "MACHO",
+      "talla_clave": "CHICO",
+      "semaforo": "AMARILLO",
+      "condicion": "EN_PROCESO",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-03.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Tlacuache"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "slug": "nieve-f43f",
+      "centro_origen_clave": "BVA",
+      "folio_interno": "00162",
+      "centro_actual_clave": "GALEANA",
+      "nombre": "Nieve",
+      "edad_clave": "GERIATRA",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "MEDIANO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-06.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Nieve"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-07.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Nieve"
+        },
+        {
+          "orden": 3,
+          "archivo": "/imagenes/muestra/muestra-08.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Nieve"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "slug": "bartolo-a8a6",
+      "centro_origen_clave": "GALEANA",
+      "folio_interno": "00162",
+      "centro_actual_clave": "GALEANA",
+      "nombre": "Bartolo",
+      "edad_clave": "JOVEN",
+      "sexo_clave": "MACHO",
+      "talla_clave": "GRANDE",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-01.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Bartolo"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-02.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Bartolo"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "slug": "canela-8b22",
+      "centro_origen_clave": "BVA",
+      "folio_interno": "00169",
+      "centro_actual_clave": "BVA",
+      "nombre": "Canela",
+      "edad_clave": "JOVEN",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "CHICO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-04.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Canela"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "slug": "guero-d652",
+      "centro_origen_clave": "AJUSCO",
+      "folio_interno": "00169",
+      "centro_actual_clave": "AJUSCO",
+      "nombre": "Güero",
+      "edad_clave": "ADULTO",
+      "sexo_clave": "MACHO",
+      "talla_clave": "MEDIANO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-07.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Güero"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-08.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Güero"
+        },
+        {
+          "orden": 3,
+          "archivo": "/imagenes/muestra/muestra-01.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Güero"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "slug": "pambazo-a64a",
+      "centro_origen_clave": "GALEANA",
+      "folio_interno": "00169",
+      "centro_actual_clave": "GALEANA",
+      "nombre": "Pambazo",
+      "edad_clave": "GERIATRA",
+      "sexo_clave": "MACHO",
+      "talla_clave": "CHICO",
+      "semaforo": "AMARILLO",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-02.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Pambazo"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-03.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Pambazo"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "slug": "chispa-6976",
+      "centro_origen_clave": "BVA",
+      "folio_interno": "00176",
+      "centro_actual_clave": "BVA",
+      "nombre": "Chispa",
+      "edad_clave": "JOVEN",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "CHICO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-05.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Chispa"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-06.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Chispa"
+        },
+        {
+          "orden": 3,
+          "archivo": "/imagenes/muestra/muestra-07.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Chispa"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "slug": "coco-bfea",
+      "centro_origen_clave": "AJUSCO",
+      "folio_interno": "00176",
+      "centro_actual_clave": "AJUSCO",
+      "nombre": "Coco",
+      "edad_clave": "ADULTO",
+      "sexo_clave": "MACHO",
+      "talla_clave": "MEDIANO",
+      "semaforo": "VERDE",
+      "condicion": "ADOPTADO",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-08.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Coco"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "slug": "manchas-fd4a",
+      "centro_origen_clave": "GALEANA",
+      "folio_interno": "00176",
+      "centro_actual_clave": "GALEANA",
+      "nombre": "Manchas",
+      "edad_clave": "JOVEN",
+      "sexo_clave": "MACHO",
+      "talla_clave": "GRANDE",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-03.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Manchas"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-04.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Manchas"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "slug": "luna-b9d4",
+      "centro_origen_clave": "AJUSCO",
+      "folio_interno": "00183",
+      "centro_actual_clave": "AJUSCO",
+      "nombre": "Luna",
+      "edad_clave": "GERIATRA",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "CHICO",
+      "semaforo": "AMARILLO",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-06.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Luna"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "slug": "emperatriz-de-la-colonia-doctores-dff9",
+      "centro_origen_clave": "BVA",
+      "folio_interno": "00183",
+      "centro_actual_clave": "BVA",
+      "nombre": "Emperatriz de la Colonia Doctores",
+      "edad_clave": "ADULTO",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "GRANDE",
+      "semaforo": "VERDE",
+      "condicion": "EN_PROCESO",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-01.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Emperatriz de la Colonia Doctores"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-02.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Emperatriz de la Colonia Doctores"
+        },
+        {
+          "orden": 3,
+          "archivo": "/imagenes/muestra/muestra-03.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Emperatriz de la Colonia Doctores"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "slug": "tuna-1e3c",
+      "centro_origen_clave": "GALEANA",
+      "folio_interno": "00183",
+      "centro_actual_clave": "GALEANA",
+      "nombre": "Tuna",
+      "edad_clave": "ADULTO",
+      "sexo_clave": "HEMBRA",
+      "talla_clave": "CHICO",
+      "semaforo": "VERDE",
+      "condicion": "DISPONIBLE",
+      "es_ficticio": true,
+      "fotografias": [
+        {
+          "orden": 1,
+          "archivo": "/imagenes/muestra/muestra-04.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Tuna"
+        },
+        {
+          "orden": 2,
+          "archivo": "/imagenes/muestra/muestra-05.svg",
+          "texto_alternativo": "Fotografía de muestra del ser sintiente llamado Tuna"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,233 @@
+/* =====================================================================
+   Amar es Adoptar — estilos globales
+   Identidad institucional SEDEMA: guinda, dorado y gris.
+   Todo el sitio se construye sobre estas variables: cambiar un color
+   aquí lo cambia en todas las páginas.
+   ===================================================================== */
+
+:root {
+  /* Paleta institucional */
+  --guinda: #9D2148;
+  --guinda-oscuro: #7A1937;
+  --dorado: #B28E5C;        /* institucional: filetes, bordes y acentos */
+  --dorado-texto: #8A6A3C;  /* mismo dorado oscurecido para texto pequeño (4.9:1) */
+  --gris: #55585A;
+  --gris-claro: #6E7275; /* 4.9:1 sobre blanco — cumple WCAG AA para texto */
+
+  /* Neutros de apoyo */
+  --crema: #FAF6EC;
+  --blanco: #FFFFFF;
+  --linea: #E5E1DA;
+  --texto: #2E3133;
+
+  /* Tipografías */
+  --titulos: "Cabin", system-ui, sans-serif;
+  --cuerpo: "Roboto", system-ui, sans-serif;
+
+  /* Medidas */
+  --ancho-maximo: 1180px;
+  --gutter: 16px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--cuerpo);
+  color: var(--texto);
+  background: var(--blanco);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { font-family: var(--titulos); font-weight: 700; line-height: 1.25; }
+
+a { color: var(--guinda); }
+
+/* height:auto es indispensable: sin él, los atributos width/height del HTML
+   imponen la altura real y anulan cualquier proporción definida en CSS. */
+img { max-width: 100%; height: auto; display: block; }
+
+/* Contenedor central. El gutter de 16px es el que pide el diseño
+   responsivo: en teléfono nunca hay scroll horizontal. */
+.contenedor {
+  width: 100%;
+  max-width: var(--ancho-maximo);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* Foco visible en todo elemento interactivo: requisito de accesibilidad
+   para navegación por teclado en un portal de gobierno. */
+:where(a, button, input, select, [tabindex]):focus-visible {
+  outline: 3px solid var(--dorado);
+  outline-offset: 2px;
+}
+
+/* Texto sólo para lectores de pantalla. */
+.solo-lectores {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---------- Encabezado institucional ---------- */
+
+.barra-institucional {
+  background: var(--blanco);
+  border-bottom: 1px solid var(--linea);
+}
+.barra-institucional .contenedor {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; min-height: 64px; flex-wrap: wrap;
+}
+.barra-institucional img { height: 38px; width: auto; }
+
+.banda-guinda { background: var(--guinda); }
+.banda-guinda nav {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 4px 0; padding-block: 10px;
+}
+.banda-guinda a {
+  color: var(--blanco); text-decoration: none;
+  font-size: 0.875rem; padding: 6px 18px;
+  border-right: 1px solid rgba(255,255,255,0.45);
+}
+.banda-guinda a:last-child { border-right: 0; }
+.banda-guinda a:hover, .banda-guinda a:focus-visible { text-decoration: underline; }
+
+/* ---------- Aviso de desarrollo ---------- */
+
+.aviso-desarrollo {
+  background: #3A3D3F; color: #FFFFFF;
+  font-size: 0.8125rem; letter-spacing: 0.04em; text-align: center;
+  padding: 10px var(--gutter);
+}
+.aviso-desarrollo strong { color: #FFD9A0; }
+
+/* ---------- Encabezado de sección ---------- */
+
+.franja-crema { background: var(--crema); padding-block: 40px 48px; }
+
+.antetitulo {
+  font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--dorado-texto); text-align: center; margin: 0 0 14px;
+}
+.entrada {
+  max-width: 44rem; margin: 0 auto; text-align: center;
+  color: var(--gris); font-size: 1.0625rem;
+}
+.nota-nombre {
+  max-width: 46rem; margin: 18px auto 0; text-align: center;
+  color: var(--gris-claro); font-size: 0.875rem;
+}
+
+/* ---------- Rejilla de tarjetas ---------- */
+
+.rejilla {
+  display: grid; gap: 22px;
+  grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
+  padding-block: 32px;
+}
+
+.tarjeta {
+  background: var(--blanco);
+  border: 1px solid var(--linea);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  transition: box-shadow .18s ease, transform .18s ease;
+}
+.tarjeta:hover { box-shadow: 0 6px 20px rgba(0,0,0,.09); transform: translateY(-2px); }
+
+/* Una sola proporción en todo el sitio: 4:3, con encuadre superior.
+   El encuadre superior es lo que protege la cabeza del animal cuando la
+   fotografía original es vertical. */
+.tarjeta .foto {
+  aspect-ratio: 4 / 3;
+  width: 100%; height: auto;
+  object-fit: cover; object-position: top center;
+  background: var(--crema);
+}
+
+.tarjeta .cuerpo { padding: 16px 16px 18px; display: flex; flex-direction: column; flex: 1; }
+
+.tarjeta .rotulo {
+  font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--dorado-texto); margin: 0;
+}
+.tarjeta .nombre {
+  font-family: var(--titulos); font-size: 1.125rem; font-weight: 700;
+  color: var(--texto); margin: 2px 0 14px; overflow-wrap: anywhere;
+}
+
+/* Los tres datos. Se envuelven en lugar de cortarse: el mockup original
+   recortaba "Adulto" a "Adultc" porque no cabían en una sola línea. */
+.datos { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 0 0 18px; }
+.datos div { min-width: 0; }
+.datos dt {
+  font-size: 0.625rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--gris-claro); margin: 0;
+}
+.datos dd { margin: 2px 0 0; font-size: 0.875rem; color: var(--gris); }
+
+/* ---------- Botones ---------- */
+
+.boton {
+  display: inline-block; text-align: center; text-decoration: none;
+  font-family: var(--cuerpo); font-size: 0.9375rem; font-weight: 500;
+  padding: 11px 22px; border-radius: 999px; border: 1.5px solid var(--guinda);
+  cursor: pointer; transition: background .16s ease, color .16s ease;
+}
+.boton-linea { background: var(--blanco); color: var(--guinda); }
+.boton-linea:hover { background: var(--guinda); color: var(--blanco); }
+.boton-solido { background: var(--guinda); color: var(--blanco); }
+.boton-solido:hover { background: var(--guinda-oscuro); border-color: var(--guinda-oscuro); }
+.boton[aria-disabled="true"], .boton:disabled {
+  background: #EDEAE5; color: var(--gris-claro); border-color: var(--linea);
+  cursor: not-allowed; pointer-events: none;
+}
+.tarjeta .boton { margin-top: auto; width: 100%; }
+
+/* ---------- Filtros ---------- */
+
+.zona-filtros { display: flex; justify-content: center; margin-top: 26px; }
+
+.panel-filtros {
+  border: 1px solid var(--linea); border-radius: 10px; background: var(--blanco);
+  padding: 20px; margin: 18px auto 0; max-width: 860px;
+}
+.panel-filtros[hidden] { display: none; }
+.campos { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.campos label { display: block; font-size: 0.75rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--gris-claro); margin-bottom: 5px; }
+.campos select, .campos input {
+  width: 100%; padding: 9px 11px; font-family: var(--cuerpo); font-size: 0.9375rem;
+  border: 1px solid var(--linea); border-radius: 6px; background: var(--blanco); color: var(--texto);
+}
+.acciones-filtros { display: flex; justify-content: flex-end; margin-top: 14px; }
+
+.conteo { text-align: center; color: var(--gris); font-size: 0.875rem; margin-top: 22px; }
+
+/* ---------- Paginación ---------- */
+
+.paginacion { display: flex; justify-content: center; align-items: center;
+  gap: 8px; flex-wrap: wrap; padding-block: 8px 48px; }
+.paginacion button {
+  min-width: 42px; padding: 8px 12px; font-family: var(--cuerpo); font-size: 0.9375rem;
+  background: var(--blanco); color: var(--guinda);
+  border: 1px solid var(--linea); border-radius: 6px; cursor: pointer;
+}
+.paginacion button[aria-current="page"] {
+  background: var(--guinda); color: var(--blanco); border-color: var(--guinda); font-weight: 600;
+}
+.paginacion button:disabled { color: var(--gris-claro); cursor: not-allowed; }
+
+.sin-resultados { text-align: center; color: var(--gris); padding: 48px 0 64px; }
+.sin-resultados[hidden] { display: none; }
+
+/* ---------- Pie ---------- */
+
+.pie { margin-top: 56px; border-top: 3px solid var(--dorado); background: var(--crema); }
+.pie .contenedor { padding-block: 26px; color: var(--gris); font-size: 0.8125rem; }
+.pie p { margin: 0 0 6px; }

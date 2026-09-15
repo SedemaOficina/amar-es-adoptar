@@ -1,0 +1,200 @@
+---
+/* Ficha individual del ser sintiente.
+   Tiene dirección propia y no es sólo una ventana sobre el catálogo: el
+   viaje a Llave CDMX sale del sitio y tiene que volver a una dirección
+   que conserve de qué ejemplar se trataba. */
+import Base from '../../layouts/Base.astro';
+import { obtenerEjemplares, etiqueta, portada } from '../../datos/ejemplares.js';
+
+export function getStaticPaths() {
+  return obtenerEjemplares().map((ejemplar) => ({
+    params: { slug: ejemplar.slug },
+    props: { ejemplar },
+  }));
+}
+
+const { ejemplar } = Astro.props;
+
+// De una a tres fotografías. Si no tiene ninguna, portada() devuelve la
+// imagen genérica institucional.
+const fotos = ejemplar.fotografias?.length
+  ? [...ejemplar.fotografias].sort((a, b) => a.orden - b.orden)
+  : [portada(ejemplar)];
+
+const disponible = ejemplar.condicion === 'DISPONIBLE';
+const enProceso = ejemplar.condicion === 'EN_PROCESO';
+
+// Ni el centro ni el folio interno aparecen en esta página: son datos
+// internos de la Secretaría.
+---
+<Base
+  titulo={ejemplar.nombre}
+  descripcion={`${ejemplar.nombre} busca hogar. Conoce su ficha y solicita su adopción.`}
+>
+  <div class="contenedor">
+    <p class="regresar"><a href="/seres-sintientes">‹ Regresar al catálogo</a></p>
+  </div>
+
+  <article class="ficha contenedor">
+    <div class="galeria">
+      <img
+        id="foto-principal"
+        class="principal"
+        src={fotos[0].archivo}
+        alt={fotos[0].texto_alternativo}
+        width="960" height="720"
+      />
+
+      {fotos.length > 1 && (
+        <div class="miniaturas" role="group" aria-label="Más fotografías">
+          {fotos.map((f, i) => (
+            <button
+              type="button"
+              class="miniatura"
+              data-archivo={f.archivo}
+              data-alt={f.texto_alternativo}
+              aria-pressed={i === 0 ? 'true' : 'false'}
+            >
+              <img src={f.archivo} alt={`Ver fotografía ${i + 1} de ${ejemplar.nombre}`} width="960" height="720" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+
+    <div class="datos-ficha">
+      <p class="rotulo">Me llamo</p>
+      <h1>{ejemplar.nombre}</h1>
+
+      <dl class="datos">
+        <div>
+          <dt>Edad</dt>
+          <dd>{etiqueta('edad', ejemplar.edad_clave)}</dd>
+        </div>
+        <div>
+          <dt>Soy</dt>
+          <dd>{etiqueta('sexo', ejemplar.sexo_clave)}</dd>
+        </div>
+        <div>
+          <dt>Talla actual</dt>
+          <dd>{etiqueta('talla', ejemplar.talla_clave)}</dd>
+        </div>
+      </dl>
+
+      {disponible && (
+        <a class="boton boton-solido principal-accion" href={`/adoptar/${ejemplar.slug}`}>
+          Adóptame
+        </a>
+      )}
+
+      {enProceso && (
+        <>
+          <p class="leyenda-proceso">
+            Este ejemplar se encuentra en proceso de adopción; puedes registrar tu interés.
+          </p>
+          <span class="boton principal-accion" aria-disabled="true">Adóptame</span>
+          <a class="boton boton-linea principal-accion" href={`/adoptar/${ejemplar.slug}`}>
+            Registrar mi interés
+          </a>
+        </>
+      )}
+
+      <p class="pie-ficha">
+        Al continuar llenarás una solicitud de adopción. Completar este formulario no
+        garantiza la adopción, pero nos permite acompañarte de forma cercana y responsable
+        durante el proceso.
+      </p>
+      <p class="pie-ficha">
+        Todos los seres sintientes de este catálogo ingresan esterilizados, vacunados y desparasitados.
+      </p>
+
+      <p class="nota-nombre nota-izquierda">
+        El nombre que aparece en esta ficha fue asignado para fines de identificación.
+        La persona adoptante podrá elegir el nombre definitivo de su nuevo compañero.
+      </p>
+    </div>
+  </article>
+</Base>
+
+<style>
+  .regresar { padding-top: 22px; margin: 0; }
+  .regresar a {
+    font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--gris-claro); text-decoration: none;
+  }
+  .regresar a:hover { color: var(--guinda); }
+
+  .ficha {
+    display: grid; gap: 34px; align-items: start;
+    padding-block: 26px 12px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 820px) {
+    .ficha { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 44px; }
+  }
+
+  /* Misma proporción 4:3 y mismo encuadre superior que en la tarjeta. */
+  .principal {
+    width: 100%; height: auto; aspect-ratio: 4 / 3;
+    object-fit: cover; object-position: top center;
+    border-radius: 10px; background: var(--crema);
+  }
+
+  .miniaturas { display: flex; gap: 10px; margin-top: 10px; }
+  .miniatura {
+    padding: 0; border: 2px solid transparent; border-radius: 7px;
+    background: none; cursor: pointer; overflow: hidden;
+    width: 96px; flex: 0 0 auto; line-height: 0;
+  }
+  /* width y height explícitos: la proporción sólo se respeta si la altura
+     es automática, porque el <img> trae sus dimensiones reales en el HTML. */
+  .miniatura img {
+    width: 100%; height: auto;
+    aspect-ratio: 4 / 3; object-fit: cover; object-position: top center;
+  }
+  .miniatura[aria-pressed="true"] { border-color: var(--guinda); }
+
+  .datos-ficha .rotulo {
+    font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--dorado-texto); margin: 0;
+  }
+  .datos-ficha h1 {
+    font-size: clamp(1.75rem, 5vw, 2.25rem); color: var(--texto);
+    margin: 4px 0 20px; overflow-wrap: anywhere;
+  }
+
+  .datos-ficha .datos {
+    display: flex; flex-wrap: wrap; gap: 16px 34px;
+    margin: 0 0 26px; padding-block: 20px;
+    border-top: 1px solid var(--linea); border-bottom: 1px solid var(--linea);
+  }
+  .datos dt {
+    font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--gris-claro); margin: 0;
+  }
+  .datos dd { margin: 4px 0 0; font-size: 1rem; color: var(--texto); }
+
+  .principal-accion { width: 100%; margin-bottom: 12px; }
+
+  .leyenda-proceso {
+    background: var(--crema); border-left: 3px solid var(--dorado);
+    padding: 12px 14px; margin: 0 0 14px; color: var(--gris); font-size: 0.9375rem;
+  }
+
+  .pie-ficha { color: var(--gris-claro); font-size: 0.8125rem; margin: 10px 0 0; }
+  .nota-izquierda { text-align: left; margin-left: 0; margin-top: 22px; }
+</style>
+
+<script>
+  // Cambio de fotografía en la galería.
+  const principal = document.getElementById('foto-principal');
+  const miniaturas = document.querySelectorAll('.miniatura');
+
+  miniaturas.forEach((boton) => {
+    boton.addEventListener('click', () => {
+      principal.src = boton.dataset.archivo;
+      principal.alt = boton.dataset.alt;
+      miniaturas.forEach((otro) => otro.setAttribute('aria-pressed', String(otro === boton)));
+    });
+  });
+</script>

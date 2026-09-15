@@ -1,0 +1,19 @@
+---
+/* Página de error, con la identidad del sitio en lugar de la de Astro. */
+import Base from '../layouts/Base.astro';
+---
+<Base titulo="Página no encontrada">
+  <div class="contenedor error">
+    <p class="antetitulo">Error 404</p>
+    <h1>No encontramos esta página</h1>
+    <p>Puede que la dirección esté mal escrita, o que el ser sintiente que buscabas ya haya encontrado hogar.</p>
+    <p class="cta"><a class="boton boton-solido" href="/seres-sintientes">Ver el catálogo</a></p>
+  </div>
+</Base>
+
+<style>
+  .error { text-align: center; padding-block: 72px 88px; max-width: 34rem; }
+  .error h1 { color: var(--guinda); font-size: 1.875rem; margin: 0 0 14px; }
+  .error p { color: var(--gris); }
+  .cta { margin-top: 28px; }
+</style>

@@ -1,0 +1,45 @@
+---
+/* Tarjeta del catálogo. Lleva los valores del ejemplar en atributos
+   data-* porque el filtrado se hace en el navegador sobre estos mismos
+   elementos, sin volver a pedir nada al servidor. */
+import { etiqueta, portada } from '../datos/ejemplares.js';
+
+const { ejemplar } = Astro.props;
+const foto = portada(ejemplar);
+---
+<article
+  class="tarjeta"
+  data-ejemplar
+  data-nombre={ejemplar.nombre.toLocaleLowerCase('es')}
+  data-edad={ejemplar.edad_clave}
+  data-sexo={ejemplar.sexo_clave}
+  data-talla={ejemplar.talla_clave}
+>
+  <img class="foto" src={foto.archivo} alt={foto.texto_alternativo} width="960" height="720" loading="lazy" />
+
+  <div class="cuerpo">
+    <p class="rotulo">Me llamo</p>
+    <h2 class="nombre">{ejemplar.nombre}</h2>
+
+    <dl class="datos">
+      <div>
+        <dt>Edad</dt>
+        <dd>{etiqueta('edad', ejemplar.edad_clave)}</dd>
+      </div>
+      <div>
+        <dt>Soy</dt>
+        <dd>{etiqueta('sexo', ejemplar.sexo_clave)}</dd>
+      </div>
+      <div>
+        <dt>Talla actual</dt>
+        <dd>{etiqueta('talla', ejemplar.talla_clave)}</dd>
+      </div>
+    </dl>
+
+    <a
+      class="boton boton-linea"
+      href={`/seres-sintientes/${ejemplar.slug}`}
+      aria-label={`Adóptame — conoce la ficha de ${ejemplar.nombre}`}
+    >Adóptame</a>
+  </div>
+</article>

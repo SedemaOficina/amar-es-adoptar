@@ -1,17 +1,303 @@
 ---
+/* Página informativa sobre adopción responsable.
+   El contenido es el texto institucional vigente de la Secretaría,
+   reorganizado en secciones con anclaje propio para que la banda de
+   navegación lleve a cada una. */
+import Base from '../layouts/Base.astro';
 
+const beneficios = [
+  'Reduces el abandono, el maltrato y la sobrepoblación canina',
+  'Proteges la vida y el medio ambiente',
+  'Construyes una sociedad más solidaria',
+  'Mejoras tu ánimo y bienestar',
+];
+
+const preguntasEntorno = [
+  '¿Tienes tiempo y disponibilidad diaria?',
+  '¿Tu espacio es adecuado para su tamaño y energía?',
+  '¿Tu estilo de vida le brindará compañía y estabilidad?',
+  '¿Las personas y animales con quienes vivirá están preparados?',
+];
+
+const preguntasCompromiso = [
+  '¿Puedes cubrir gastos de alimentación y atención veterinaria?',
+  '¿Estás dispuesto a educarlo y atender sus necesidades emocionales?',
+  '¿Tendrás paciencia para ayudarlo a recuperar la confianza?',
+  '¿Estás listo para asumir un compromiso a largo plazo?',
+];
+
+const preparativos = [
+  'Un espacio seguro y cómodo para que descanse',
+  'Una cama adecuada a su tamaño',
+  'Platos para agua y alimento',
+  'Alimento adecuado para su edad y tamaño',
+  'Collar o arnés, correa e identificación',
+  'Una transportadora para traslados seguros',
+];
+
+const dominios = [
+  { nombre: 'Nutrición', texto: 'Agua fresca y alimento adecuado a su edad, tamaño y necesidades. Observar su apetito y peso te ayuda a notar a tiempo cuando algo cambia.' },
+  { nombre: 'Ambiente', texto: 'Un lugar limpio y cómodo, protegido del frío, el calor y el ruido, donde pueda moverse y descansar. Así reconocerá su nuevo hogar como un sitio seguro.' },
+  { nombre: 'Salud', texto: 'Atención veterinaria, esterilización, vacunación y desparasitación como parte de una tenencia responsable. Sus cambios de energía o apetito pueden avisarte a tiempo.' },
+  { nombre: 'Interacciones', texto: 'Pasear, oler, jugar y convivir contigo son formas de expresarse. Cada perro es distinto: algunos son muy sociables y otros necesitan más tiempo y espacio.' },
+  { nombre: 'Estado mental', texto: 'Aquí se conecta todo lo demás. Una buena vida física y las experiencias positivas le dan seguridad, confianza y disfrute, no sólo ausencia de malestar.' },
+];
+
+const tutela = [
+  { titulo: 'Compromiso de por vida', texto: 'La adopción no tiene fecha de término: acompaña al animal en todas sus etapas.' },
+  { titulo: 'Cuidado diario y tu tiempo', texto: 'Alimento, higiene, paseos y convivencia forman parte de la rutina de todos los días.' },
+  { titulo: 'Responsabilidad fuera de casa', texto: 'Correa, identificación y recoger sus desechos son parte de la convivencia en la ciudad.' },
+  { titulo: 'Estar preparado ante imprevistos', texto: 'Una enfermedad, una mudanza o un cambio de trabajo no deberían poner en riesgo su hogar.' },
+];
+
+const autoevaluacion = [
+  '¿Tengo tiempo para compartir con él?',
+  '¿Puedo cubrir su atención veterinaria?',
+  '¿Mi hogar y estilo de vida son adecuados?',
+  '¿Estoy preparado para su vejez o enfermedad?',
+  '¿Estoy dispuesto a adaptar aspectos de mi vida?',
+];
 ---
+<Base titulo="Amar es Adoptar">
+  <section class="portada">
+    <div class="contenedor">
+      <p class="antetitulo">Seres sintientes rescatados en la Ciudad de México</p>
+      <h1>Amar es adoptar</h1>
+      <p class="entrada">
+        Los animales de compañía son seres sintientes que merecen bienestar y tutela
+        responsable. Garantizamos un proceso de adopción responsable para su bienestar.
+      </p>
+      <p class="cta">
+        <a class="boton boton-solido" href="/seres-sintientes">
+          Conoce a los seres sintientes en adopción
+        </a>
+      </p>
+      <p class="nota-nombre">
+        Ahora adoptar es en línea: consulta el catálogo e inicia tu solicitud en esta
+        plataforma. Tras tu registro, te daremos seguimiento por el correo electrónico que
+        registraste. Tu cita y la entrega son presenciales.
+      </p>
+    </div>
+  </section>
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+  <section id="por-que-adoptar" class="seccion">
+    <div class="contenedor">
+      <h2>¿Por qué adoptar?</h2>
+      <p class="parrafo">
+        Los animales que buscan hogar han sido rescatados de condiciones de maltrato,
+        abandono o situación de calle. Adoptar no sólo cambia sus vidas: también
+        transforma la tuya.
+      </p>
+
+      <p class="subrayado">Además, cuando adoptas…</p>
+      <ul class="lista-palomas">
+        {beneficios.map((b) => <li>{b}</li>)}
+      </ul>
+    </div>
+  </section>
+
+  <section id="antes-de-adoptar" class="seccion alterna">
+    <div class="contenedor">
+      <h2>¿Qué debes saber antes de adoptar?</h2>
+
+      <div class="dos-columnas">
+        <div class="bloque">
+          <h3>Antes de adoptar</h3>
+          <p class="parrafo">
+            Es importante reflexionar si tu entorno, tu tiempo y tu estilo de vida pueden
+            ofrecerle el cuidado que necesita.
+          </p>
+          <ul class="lista-preguntas">
+            {preguntasEntorno.map((p) => <li>{p}</li>)}
+          </ul>
+        </div>
+
+        <div class="bloque">
+          <h3>El compromiso que asumes</h3>
+          <p class="parrafo">
+            Algunos de estos animales han vivido situaciones difíciles y necesitan
+            paciencia y acompañamiento.
+          </p>
+          <ul class="lista-preguntas">
+            {preguntasCompromiso.map((p) => <li>{p}</li>)}
+          </ul>
+        </div>
+      </div>
+
+      <p class="destacado">
+        Si respondiste que sí a estas preguntas, estás listo para adoptar.
+      </p>
+      <p class="parrafo menor">
+        Completar el formulario no asegura la adopción; buscamos el hogar ideal para cada
+        rescatado.
+      </p>
+    </div>
+  </section>
+
+  <section id="que-tener-listo" class="seccion">
+    <div class="contenedor">
+      <h2>¿Qué debes tener listo?</h2>
+      <p class="parrafo">Preparar tu hogar es parte del proceso de adopción responsable.</p>
+      <ul class="lista-palomas dos">
+        {preparativos.map((p) => <li>{p}</li>)}
+      </ul>
+    </div>
+  </section>
+
+  <section class="seccion alterna">
+    <div class="contenedor">
+      <p class="antetitulo izq">Adopción responsable</p>
+      <h2>Los cinco dominios del bienestar animal</h2>
+      <p class="parrafo">
+        Una buena vida se construye todos los días. Conocerlos te ayuda a decidir mejor y a
+        reconocer, poco a poco, lo que tu compañero necesita.
+      </p>
+
+      <ol class="dominios">
+        {dominios.map((d, i) => (
+          <li>
+            <span class="numero" aria-hidden="true">{i + 1}</span>
+            <h3>{d.nombre}</h3>
+            <p>{d.texto}</p>
+          </li>
+        ))}
+      </ol>
+
+      <p class="formula">
+        Nutrición + Ambiente + Salud + Interacciones <span aria-hidden="true">→</span>
+        <strong>Estado mental</strong>
+      </p>
+    </div>
+  </section>
+
+  <section class="seccion">
+    <div class="contenedor">
+      <p class="antetitulo izq">Antes de adoptar</p>
+      <h2>Ser su tutor es cuidar una vida</h2>
+      <p class="parrafo">
+        Adoptar es una promesa. Desde que llega contigo, una vida dependerá de tus
+        decisiones y de tu compromiso en cada etapa.
+      </p>
+
+      <div class="tutela">
+        {tutela.map((t) => (
+          <div class="bloque">
+            <h3>{t.titulo}</h3>
+            <p>{t.texto}</p>
+          </div>
+        ))}
+      </div>
+
+      <h3 class="pregunta-final">Antes de adoptar, pregúntate</h3>
+      <ul class="lista-preguntas dos">
+        {autoevaluacion.map((p) => <li>{p}</li>)}
+      </ul>
+    </div>
+  </section>
+
+  <section class="cierre">
+    <div class="contenedor">
+      <p class="antetitulo">Seres sintientes rescatados en la Ciudad de México</p>
+      <p class="entrada">
+        Estamos aquí para acompañarte en cada paso de este proceso responsable.
+      </p>
+      <p class="cta">
+        <a class="boton boton-solido" href="/seres-sintientes">Ver el catálogo</a>
+      </p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .portada { background: var(--crema); padding-block: 52px 60px; text-align: center; }
+  .portada h1 { font-size: clamp(2rem, 6vw, 3rem); color: var(--guinda); margin: 0 0 16px; }
+  .cta { margin-top: 28px; }
+
+  .seccion { padding-block: 48px; }
+  .seccion.alterna { background: var(--crema); }
+  .seccion h2 { color: var(--guinda); font-size: clamp(1.375rem, 4vw, 1.75rem); margin: 0 0 16px; }
+  .antetitulo.izq { text-align: left; }
+
+  .parrafo { color: var(--gris); max-width: 46rem; margin: 0 0 18px; }
+  .parrafo.menor { font-size: 0.875rem; }
+
+  .subrayado {
+    font-family: var(--titulos); font-weight: 700; color: var(--texto);
+    margin: 22px 0 12px;
+  }
+
+  /* Listas con paloma dibujada en CSS: sin librería de iconos. */
+  .lista-palomas, .lista-preguntas { list-style: none; padding: 0; margin: 0; }
+  .lista-palomas.dos, .lista-preguntas.dos {
+    display: grid; gap: 4px 30px; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  }
+  .lista-palomas li, .lista-preguntas li {
+    position: relative; padding-left: 30px; margin-bottom: 11px; color: var(--gris);
+  }
+  .lista-palomas li::before {
+    content: ''; position: absolute; left: 6px; top: 7px;
+    width: 6px; height: 11px; border: solid var(--guinda);
+    border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  .lista-preguntas li::before {
+    content: ''; position: absolute; left: 4px; top: 10px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--dorado);
+  }
+
+  .dos-columnas {
+    display: grid; gap: 30px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    margin-bottom: 26px;
+  }
+  .bloque h3 {
+    font-size: 0.8125rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--dorado-texto); margin: 0 0 10px;
+  }
+
+  .destacado {
+    font-family: var(--titulos); font-size: 1.125rem; font-weight: 700;
+    color: var(--guinda); border-left: 3px solid var(--dorado);
+    padding: 10px 0 10px 16px; margin: 0 0 12px;
+  }
+
+  .dominios {
+    list-style: none; padding: 0; margin: 26px 0 0;
+    display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+  .dominios li {
+    background: var(--blanco); border: 1px solid var(--linea);
+    border-radius: 10px; padding: 20px 18px;
+  }
+  .dominios .numero {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--guinda); color: var(--blanco);
+    font-family: var(--titulos); font-weight: 700; font-size: 0.9375rem;
+  }
+  .dominios h3 { color: var(--texto); font-size: 1.0625rem; margin: 12px 0 6px; }
+  .dominios p { color: var(--gris); font-size: 0.9375rem; margin: 0; }
+
+  .formula {
+    margin: 26px 0 0; color: var(--gris); font-size: 0.9375rem;
+    border-top: 1px solid var(--linea); padding-top: 18px;
+  }
+  .formula strong { color: var(--guinda); }
+
+  .tutela {
+    display: grid; gap: 18px; margin: 26px 0 36px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+  .tutela .bloque {
+    border-left: 3px solid var(--dorado); padding-left: 16px;
+  }
+  .tutela h3 {
+    font-family: var(--titulos); font-size: 1rem; color: var(--texto);
+    text-transform: none; letter-spacing: 0; margin: 0 0 6px;
+  }
+  .tutela p { color: var(--gris); font-size: 0.9375rem; margin: 0; }
+
+  .pregunta-final {
+    font-family: var(--titulos); font-size: 1.0625rem; color: var(--texto); margin: 0 0 14px;
+  }
+
+  .cierre { background: var(--crema); padding-block: 48px 56px; text-align: center; }
+</style>

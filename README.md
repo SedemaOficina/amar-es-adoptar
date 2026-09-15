@@ -1,43 +1,53 @@
-# Astro Starter Kit: Minimal
+# Amar es Adoptar
 
-```sh
-npm create astro@latest -- --template minimal
+Plataforma de adopción de seres sintientes de la **Secretaría del Medio Ambiente de la
+Ciudad de México**.
+
+Sustituye a la plataforma vigente en `amaresadoptar.cdmx.gob.mx`, corrigiendo por diseño
+sus fallas conocidas: dos fuentes de datos que no se sincronizaban, la ficha pública rota
+por un identificador ambiguo, un solo perfil de usuario con permiso de borrado, y el
+recorte inconsistente de fotografías.
+
+## Estado
+
+| Etapa | Alcance | Estado |
+|---|---|---|
+| 1 | Portal público con datos ficticios | En curso |
+| 2 | Administración, base de datos y carga masiva | Pendiente |
+| 3 | Conexión del portal a datos reales | Pendiente |
+| 4 | Solicitudes de adopción con Llave CDMX | Pendiente |
+| 5 | Indicadores | Pendiente |
+| 6 | Cierre de entrega a ADIP | Pendiente |
+
+## Cómo está armado
+
+```
+public/imagenes/      Logotipo institucional e imágenes de muestra
+src/datos/            Datos de los ejemplares y su módulo de acceso
+src/layouts/          Plantilla común: encabezado, navegación y pie
+src/components/       Tarjeta del catálogo
+src/pages/            Páginas del sitio
+src/estilos/          Hoja de estilos global y paleta institucional
+migraciones/          Esquema de la base de datos (etapa 2)
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+**El archivo que importa entender es `src/datos/ejemplares.js`.** Es la única pieza que
+cambia en la etapa 3: hoy lee un archivo JSON con datos ficticios; cuando exista la API se
+sustituye el contenido de sus funciones y ninguna página tiene que tocarse. Ese punto
+único de acceso es lo que impide que el portal público y la administración terminen
+leyendo fuentes distintas.
 
-## 🚀 Project Structure
+## Datos ficticios
 
-Inside of your Astro project, you'll see the following folders and files:
+Mientras `src/datos/ejemplares.json` tenga `es_ficticio: true`, el sitio muestra un aviso
+permanente en la parte superior. Los 30 registros son inventados y las fotografías son
+rectángulos generados, marcados con la leyenda «FOTO DE MUESTRA». Se retiran en la
+etapa 2, al cargar la información verdadera.
 
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
+## Despliegue
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+Ver [`DESPLIEGUE.md`](./DESPLIEGUE.md).
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+## Titularidad
 
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Ver [`TITULARIDAD.md`](./TITULARIDAD.md).

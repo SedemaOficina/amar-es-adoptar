@@ -1,0 +1,68 @@
+---
+/* Plantilla común a todas las páginas: encabezado institucional, banda de
+   navegación, aviso de desarrollo y pie. Cada página sólo aporta su
+   contenido; el marco vive aquí y se corrige en un solo lugar. */
+import '../estilos/global.css';
+import { hayDatosFicticios } from '../datos/ejemplares.js';
+
+const { titulo, descripcion = 'Catálogo de seres sintientes en adopción de la Secretaría del Medio Ambiente de la Ciudad de México.' } = Astro.props;
+---
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titulo} · Amar es Adoptar</title>
+    <meta name="description" content={descripcion} />
+    <link rel="icon" href="/imagenes/sin-foto.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cabin:wght@500;700&family=Roboto:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <a href="#contenido" class="solo-lectores">Ir al contenido principal</a>
+
+    {hayDatosFicticios && (
+      <p class="aviso-desarrollo">
+        <strong>SITIO EN DESARROLLO.</strong>{' '}
+        Los registros que aparecen aquí son ficticios y no corresponden a animales reales.
+      </p>
+    )}
+
+    <header>
+      <div class="barra-institucional">
+        <div class="contenedor">
+          <a href="/">
+            <img
+              src="/imagenes/logo-sedema.png"
+              alt="Gobierno de la Ciudad de México · Secretaría del Medio Ambiente"
+            />
+          </a>
+        </div>
+      </div>
+
+      <div class="banda-guinda">
+        <nav aria-label="Navegación principal">
+          <a href="/#por-que-adoptar">¿Por qué adoptar?</a>
+          <a href="/#antes-de-adoptar">¿Qué debes saber antes de adoptar?</a>
+          <a href="/#que-tener-listo">¿Qué debes tener listo?</a>
+          <a href="/seres-sintientes">Conoce a los seres sintientes en adopción</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="contenido">
+      <slot />
+    </main>
+
+    <footer class="pie">
+      <div class="contenedor">
+        <p>Secretaría del Medio Ambiente · Gobierno de la Ciudad de México</p>
+        <p><a href="/aviso-de-privacidad">Aviso de privacidad</a></p>
+      </div>
+    </footer>
+  </body>
+</html>
