@@ -44,21 +44,34 @@ Genera el sitio estático en `dist/`. Para revisarlo antes de publicar:
 npm run preview
 ```
 
-## 4. Publicación en Cloudflare Pages
+## 4. Publicación en Cloudflare
 
-El proyecto se publica conectando el repositorio a Cloudflare Pages.
+El sitio se publica como un **Worker que sirve archivos estáticos**, no como un proyecto
+de Cloudflare Pages. Se eligió así porque en la etapa 2 la API se monta sobre este mismo
+Worker: el portal público y la administración quedan en un solo despliegue y un solo
+origen, sin sincronización entre servicios separados.
+
+La configuración vive en `wrangler.jsonc` y en `.node-version`, ambos versionados. No hay
+valores que capturar a mano en el panel de Cloudflare.
+
+Al conectar el repositorio desde el panel (*Workers & Pages* → *Create* → *Import a
+repository*), los únicos campos son:
 
 | Parámetro | Valor |
 |---|---|
-| Framework preset | Astro |
+| Project name | `amar-es-adoptar` |
 | Build command | `npm run build` |
-| Build output directory | `dist` |
-| Root directory | *(vacío)* |
-| Variable de entorno | `NODE_VERSION` = `22` |
+| Deploy command | `npx wrangler deploy` |
 
-Cada envío a la rama `main` dispara una publicación automática. Las ramas distintas de
-`main` generan vistas previas con dirección propia, útiles para revisar un cambio antes
-de publicarlo.
+Cada envío a la rama `main` dispara una publicación automática. Las demás ramas generan
+vistas previas con dirección propia, útiles para revisar un cambio antes de publicarlo.
+
+Para desplegar desde la propia máquina, sin pasar por el panel:
+
+```bash
+npm run build
+npx wrangler deploy
+```
 
 ## 5. Variables de entorno
 

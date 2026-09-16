@@ -1,0 +1,26 @@
+{
+  // Configuración de despliegue en Cloudflare Workers.
+  //
+  // El sitio se publica como un Worker que sirve archivos estáticos. Hoy no
+  // tiene código de servidor: sólo entrega lo que Astro construye en dist/.
+  // En la etapa 2, la API se agrega a este mismo Worker, con lo que el portal
+  // público y la administración quedan en un solo despliegue y un solo
+  // origen. Esa unidad es justamente lo que le falta a la plataforma vigente.
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  "name": "amar-es-adoptar",
+  "compatibility_date": "2026-09-16",
+
+  "assets": {
+    // Carpeta que genera `npm run build`.
+    "directory": "./dist",
+
+    // Las direcciones que no existen reciben nuestra página 404,
+    // con la identidad del sitio y no la de Cloudflare.
+    "not_found_handling": "404-page"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}
