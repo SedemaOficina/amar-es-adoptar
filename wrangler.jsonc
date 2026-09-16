@@ -32,6 +32,20 @@
     }
   ],
 
+  // Espacio KV que el adaptador de Astro declara para sus sesiones.
+  //
+  // El proyecto NO lo usa: la sesión del personal viaja en una cookie firmada
+  // (ver src/servidor/sesion.js). Se declara aquí con su identificador ya
+  // creado para que el despliegue automático no tenga que aprovisionarlo:
+  // el token de construcción no tiene permiso para crear recursos, y ése era
+  // el motivo de que fallara la publicación desde GitHub.
+  "kv_namespaces": [
+    {
+      "binding": "SESSION",
+      "id": "78f2ce09f93043b29214e35985550dd8"
+    }
+  ],
+
   "observability": {
     "enabled": true
   }
