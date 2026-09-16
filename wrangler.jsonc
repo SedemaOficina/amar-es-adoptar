@@ -1,24 +1,36 @@
 {
-  // Configuración de despliegue en Cloudflare Workers.
+  // Identidad del Worker y enlaces con los servicios de Cloudflare.
   //
-  // El sitio se publica como un Worker que sirve archivos estáticos. Hoy no
-  // tiene código de servidor: sólo entrega lo que Astro construye en dist/.
-  // En la etapa 2, la API se agrega a este mismo Worker, con lo que el portal
-  // público y la administración quedan en un solo despliegue y un solo
-  // origen. Esa unidad es justamente lo que le falta a la plataforma vigente.
+  // IMPORTANTE: aquí NO van "main" ni "assets".
+  // El adaptador de Astro toma este archivo, le agrega el punto de entrada y
+  // las carpetas que produce al construir, y escribe la configuración
+  // completa en dist/server/wrangler.json. Esa es la que se despliega:
+  //
+  //     npx wrangler deploy -c dist/server/wrangler.json
+  //
+  // Si se declaran aquí, el servidor de desarrollo falla, porque apuntan a
+  // archivos que sólo existen después de `npm run build`.
   "$schema": "node_modules/wrangler/config-schema.json",
 
   "name": "amar-es-adoptar",
   "compatibility_date": "2026-09-16",
 
-  "assets": {
-    // Carpeta que genera `npm run build`.
-    "directory": "./dist",
+  // Necesario para que funcionen en el Worker las partes de Astro que
+  // esperan las interfaces de Node.
+  "compatibility_flags": ["nodejs_compat"],
 
-    // Las direcciones que no existen reciben nuestra página 404,
-    // con la identidad del sitio y no la de Cloudflare.
-    "not_found_handling": "404-page"
-  },
+  // Base de datos D1 (SQLite administrado por Cloudflare).
+  // El enlace se llama DB: así se consulta como env.DB en el código, sin
+  // repetir el nombre del proyecto en cada consulta.
+  //   npx wrangler d1 execute amar-es-adoptar --local  --file=./migraciones/0001_inicial.sql
+  //   npx wrangler d1 execute amar-es-adoptar --remote --file=./migraciones/0001_inicial.sql
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "amar-es-adoptar",
+      "database_id": "d5ca9fbd-bcbb-4f4a-8517-6c647957974b"
+    }
+  ],
 
   "observability": {
     "enabled": true

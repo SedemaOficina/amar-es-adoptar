@@ -1,24 +1,32 @@
-# build output
+# Resultado de la construcción
 dist/
-# generated types
+
+# Tipos generados por Astro
 .astro/
 
-# dependencies
+# Estado local de wrangler: incluye la copia local de la base de datos
+.wrangler/
+
+# Dependencias
 node_modules/
 
-# logs
+# Registros
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-
-# environment variables
+# Variables de entorno y secretos.
+# .dev.vars contiene el secreto que firma las cookies de sesión: NUNCA se versiona.
 .env
 .env.production
+.dev.vars
+.dev.vars.*
+!.dev.vars.ejemplo
 
-# macOS-specific files
+# Archivos del sistema operativo
 .DS_Store
+Thumbs.db
 
-# jetbrains setting folder
+# Configuración de editores
 .idea/

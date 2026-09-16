@@ -12,9 +12,13 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "^14.3.1",
     "astro": "^7.3.2"
   },
   "allowScripts": {
     "esbuild": true
+  },
+  "devDependencies": {
+    "wrangler": "^4.132.0"
   }
 }

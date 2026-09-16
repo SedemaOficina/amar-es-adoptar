@@ -46,32 +46,48 @@ npm run preview
 
 ## 4. Publicación en Cloudflare
 
-El sitio se publica como un **Worker que sirve archivos estáticos**, no como un proyecto
-de Cloudflare Pages. Se eligió así porque en la etapa 2 la API se monta sobre este mismo
-Worker: el portal público y la administración quedan en un solo despliegue y un solo
-origen, sin sincronización entre servicios separados.
+El sitio se publica como un **Worker** que sirve las páginas estáticas del portal y
+genera en el servidor las de administración. Se eligió así, y no como proyecto de
+Cloudflare Pages, porque el portal público y la administración quedan en un solo
+despliegue y leen de una sola base de datos.
 
-La configuración vive en `wrangler.jsonc` y en `.node-version`, ambos versionados. No hay
-valores que capturar a mano en el panel de Cloudflare.
+### Cómo se reparte la configuración
 
-Al conectar el repositorio desde el panel (*Workers & Pages* → *Create* → *Import a
-repository*), los únicos campos son:
+`wrangler.jsonc`, en la raíz, contiene **sólo la identidad del Worker y sus enlaces**:
+nombre, fecha de compatibilidad, banderas y la base D1.
+
+No lleva `main` ni `assets`, y no debe llevarlos: el adaptador de Astro toma ese archivo,
+le agrega el punto de entrada y las carpetas que produce al construir, y escribe la
+configuración completa en `dist/server/wrangler.json`. Declararlos en la raíz hace que
+`npm run dev` falle, porque apuntan a archivos que sólo existen después de construir.
+
+### Ajustes en el panel de Cloudflare
 
 | Parámetro | Valor |
 |---|---|
-| Project name | `amar-es-adoptar` |
 | Build command | `npm run build` |
-| Deploy command | `npx wrangler deploy` |
+| Deploy command | `npx wrangler deploy -c dist/server/wrangler.json` |
+
+El `-c` es indispensable: sin él, wrangler lee el archivo de la raíz, no encuentra qué
+publicar y falla.
 
 Cada envío a la rama `main` dispara una publicación automática. Las demás ramas generan
-vistas previas con dirección propia, útiles para revisar un cambio antes de publicarlo.
+vistas previas con dirección propia.
 
-Para desplegar desde la propia máquina, sin pasar por el panel:
+Para desplegar desde la propia máquina:
 
 ```bash
 npm run build
-npx wrangler deploy
+npx wrangler deploy -c dist/server/wrangler.json
 ```
+
+### Recursos que Cloudflare crea solo
+
+El adaptador declara un espacio KV con el enlace `SESSION`, que Cloudflare aprovisiona en
+el primer despliegue. El proyecto no lo usa: la sesión del personal viaja en una cookie
+firmada y la validez se comprueba contra la tabla `usuario` en cada petición, de modo que
+dar de baja a alguien surte efecto de inmediato. Queda declarado porque el adaptador lo
+incluye por omisión; puede retirarse sin consecuencias.
 
 ## 5. Variables de entorno
 

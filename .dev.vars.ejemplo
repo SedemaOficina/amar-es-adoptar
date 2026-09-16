@@ -1,0 +1,21 @@
+# Copia este archivo como .dev.vars y rellena los valores.
+# .dev.vars NO se versiona: contiene secretos.
+
+# Secreto para firmar la cookie de sesión del personal.
+# Genera uno propio, largo y aleatorio. Nunca reutilices el de otro ambiente.
+SESSION_SECRET=
+
+# --- Proveedor de identidad (Llave CDMX) -----------------------------------
+# Mientras estén vacías, en desarrollo opera el acceso simulado y fuera de
+# desarrollo el sistema avisa que el acceso no está configurado.
+# Al llenarlas, el proveedor real entra en funcionamiento sin tocar código.
+#
+# La dirección de retorno que hay que registrar ante ADIP es:
+#     https://<dominio-del-sitio>/admin/callback
+#
+# OIDC_AUTORIZACION=
+# OIDC_TOKEN=
+# OIDC_USUARIO=
+# OIDC_CLIENTE_ID=
+# OIDC_CLIENTE_SECRETO=
+# OIDC_ALCANCE=openid profile email

@@ -1,0 +1,115 @@
+---
+/* Pantalla de acceso del personal.
+ *
+ * Con Llave CDMX configurada, esta página no se ve: redirige de inmediato a
+ * la pantalla del proveedor. Sin proveedor configurado y en desarrollo,
+ * muestra la lista de usuarios de prueba. Fuera de desarrollo y sin
+ * proveedor, avisa que el acceso no está configurado, en lugar de dejar una
+ * puerta abierta.
+ */
+export const prerender = false;
+
+import Base from '../../layouts/Base.astro';
+import { leerSesion } from '../../servidor/sesion.js';
+import { hayProveedorReal, haySimulado, urlDeAutorizacion } from '../../servidor/identidad.js';
+import { listarPersonalDePrueba } from '../../servidor/personal.js';
+
+// Quien ya tiene sesión no vuelve a identificarse.
+if (await leerSesion(Astro.cookies)) {
+  return Astro.redirect('/admin');
+}
+
+if (hayProveedorReal()) {
+  // El estado protege contra que alguien nos devuelva un código ajeno.
+  const estado = crypto.randomUUID();
+  Astro.cookies.set('oidc_estado', estado, {
+    path: '/admin',
+    httpOnly: true,
+    secure: Astro.url.protocol === 'https:',
+    sameSite: 'lax',
+    maxAge: 600,
+  });
+  return Astro.redirect(urlDeAutorizacion(Astro.url, estado));
+}
+
+const motivo = Astro.url.searchParams.get('motivo');
+const personal = haySimulado() ? await listarPersonalDePrueba() : [];
+---
+<Base titulo="Acceso al sistema">
+  <div class="contenedor acceso">
+    <p class="antetitulo">Administración</p>
+    <h1>Acceso al sistema</h1>
+
+    {motivo === 'sin-acceso' && (
+      <p class="aviso">
+        Tu cuenta no tiene acceso al sistema, o fue dada de baja. Si crees que es un
+        error, comunícate con la administración de la plataforma.
+      </p>
+    )}
+    {motivo === 'estado' && (
+      <p class="aviso">
+        La sesión de acceso no pudo verificarse. Vuelve a intentarlo desde esta pantalla.
+      </p>
+    )}
+    {motivo === 'error' && (
+      <p class="aviso">
+        No se pudo completar la identificación con el proveedor. Vuelve a intentarlo.
+      </p>
+    )}
+
+    {haySimulado() ? (
+      <>
+        <p class="nota">
+          <strong>Acceso simulado de desarrollo.</strong> Esta pantalla sólo existe cuando
+          el sistema corre en una máquina local. Al configurar Llave CDMX, desaparece sola
+          y el acceso pasa por el proveedor institucional.
+        </p>
+
+        <ul class="personal">
+          {personal.map((p) => (
+            <li>
+              <form method="POST" action="/admin/callback">
+                <input type="hidden" name="dev_sub" value={p.oidc_sub} />
+                <button type="submit">
+                  <span class="nombre">{p.nombre}</span>
+                  <span class="detalle">
+                    {p.rol === 'ADMIN_GLOBAL' ? 'Administración global' : `Capturista · ${p.centro_etiqueta}`}
+                  </span>
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      </>
+    ) : (
+      <p class="aviso">
+        El acceso al sistema no está configurado. Hace falta dar de alta el proveedor de
+        identidad institucional en las variables de entorno del despliegue.
+      </p>
+    )}
+  </div>
+</Base>
+
+<style>
+  .acceso { padding-block: 32px 64px; max-width: 34rem; }
+  h1 { color: var(--guinda); font-size: 1.625rem; margin: 0 0 20px; }
+
+  .aviso {
+    border-left: 3px solid var(--guinda); background: var(--crema);
+    padding: 12px 14px; margin: 0 0 20px; color: var(--gris); font-size: 0.9375rem;
+  }
+  .nota {
+    border-left: 3px solid var(--dorado); padding: 12px 14px; margin: 0 0 22px;
+    color: var(--gris); font-size: 0.875rem;
+  }
+
+  .personal { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .personal button {
+    width: 100%; text-align: left; cursor: pointer;
+    background: var(--blanco); border: 1px solid var(--linea); border-radius: 8px;
+    padding: 14px 16px; font-family: var(--cuerpo);
+  }
+  .personal button:hover { border-color: var(--guinda); }
+  .personal .nombre { display: block; font-weight: 500; color: var(--texto); }
+  .personal .detalle { display: block; font-size: 0.8125rem; color: var(--gris-claro); margin-top: 2px; }
+</style>
