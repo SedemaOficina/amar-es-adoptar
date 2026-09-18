@@ -96,12 +96,28 @@ export async function leerSesion(cookies) {
   }
 }
 
+/* ADVERTENCIA ANTES DE TOCAR `sameSite`.
+ *
+ * `sameSite: 'lax'` no es una preferencia: es lo que sostiene la seguridad de
+ * los quince formularios de la administración. El navegador no manda esta
+ * cookie cuando el POST viene de otro sitio, y por eso ninguno de esos
+ * formularios necesita un testigo anti-CSRF. Si alguien la cambia a 'none'
+ * para resolver otra cosa —una incrustación, una pasarela, un visor— abre las
+ * quince puertas a la vez y nada falla ni avisa: el sistema sigue funcionando
+ * igual, sólo que cualquier página ajena puede dar de baja un ejemplar en
+ * nombre de quien esté con la sesión abierta.
+ *
+ * Si algún día hace falta 'none', entonces hace falta también un testigo por
+ * formulario. Las dos cosas van juntas o no va ninguna.
+ *
+ * Levantado en la auditoría de endpoints del 18/09/2026, donde esta decisión
+ * existía en el código y en ningún documento. */
 export async function abrirSesion(cookies, sub, esSeguro) {
   cookies.set(NOMBRE_COOKIE, await crearValorSesion(sub), {
     path: '/',
     httpOnly: true,       // el JavaScript de la página no puede leerla
     secure: esSeguro,     // sólo viaja por HTTPS fuera de desarrollo
-    sameSite: 'lax',      // no se envía desde otros sitios
+    sameSite: 'lax',      // no se envía desde otros sitios — ver arriba
     maxAge: DURACION_HORAS * 3600,
   });
 }

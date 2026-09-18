@@ -18,7 +18,25 @@ export async function onRequest(contexto, next) {
 
   const esAdministracion = ruta === '/admin' || ruta.startsWith('/admin/');
   if (!esAdministracion) return next();
-  if (RUTAS_ABIERTAS.has(ruta)) return next();
+
+  /* Nada de la administración se guarda en caché.
+   *
+   * La ficha de una solicitud lleva CURP, domicilio y teléfono. Sin esta
+   * cabecera el navegador la deja en su caché de disco y en el historial de
+   * atrás/adelante: en una computadora compartida de un centro de adopción,
+   * quien llegue después puede leerla con el botón de regresar, sin sesión y
+   * sin que quede constancia en bitácora.
+   *
+   * Va aquí y no pantalla por pantalla porque el middleware es el único paso
+   * obligado: una pantalla nueva la hereda sin que nadie se acuerde. Es lo
+   * contrario de lo que pasó hasta hoy, cuando la única que la llevaba era la
+   * descarga en CSV porque alguien se acordó de ponérsela. */
+  const sinCache = (respuesta) => {
+    respuesta.headers.set('cache-control', 'no-store');
+    return respuesta;
+  };
+
+  if (RUTAS_ABIERTAS.has(ruta)) return sinCache(await next());
 
   // Se cargan aquí y no arriba para que el portal público, que se genera al
   // construir, no arrastre código que sólo tiene sentido en el servidor.
@@ -26,12 +44,12 @@ export async function onRequest(contexto, next) {
   const { obtenerPersonaActiva } = await import('./servidor/personal.js');
 
   const sub = await leerSesion(contexto.cookies);
-  if (!sub) return contexto.redirect('/admin/entrar');
+  if (!sub) return sinCache(contexto.redirect('/admin/entrar'));
 
   const persona = await obtenerPersonaActiva(sub);
   if (!persona) {
     cerrarSesion(contexto.cookies);
-    return contexto.redirect('/admin/entrar?motivo=sin-acceso');
+    return sinCache(contexto.redirect('/admin/entrar?motivo=sin-acceso'));
   }
 
   /* La persona se deja disponible ANTES del filtro de abajo, no después.
@@ -52,8 +70,8 @@ export async function onRequest(contexto, next) {
      de forma (C-11). */
   const SOLO_ADMIN_GLOBAL = ['/admin/personal', '/admin/almacen'];
   if (SOLO_ADMIN_GLOBAL.some((r) => ruta.startsWith(r)) && persona.rol !== 'ADMIN_GLOBAL') {
-    return contexto.rewrite('/admin/no-encontrado');
+    return sinCache(await contexto.rewrite('/admin/no-encontrado'));
   }
 
-  return next();
+  return sinCache(await next());
 }

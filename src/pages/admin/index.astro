@@ -13,7 +13,12 @@ let error = null;
 try {
   cifras = await resumen(persona);
 } catch (e) {
-  error = e.message;
+  /* El detalle va al registro del servidor, no a la pantalla: el mensaje de
+     una excepción puede llevar fragmentos de SQL o nombres de columna. Quien
+     mira la pantalla no puede hacer nada con eso, y es justo lo que el
+     formulario público ya se cuida de no enseñar. */
+  console.error('[inicio] falló el resumen:', e);
+  error = 'Vuelve a intentarlo en unos minutos; si sigue igual, avisa a quien administra el sistema.';
 }
 
 const alcance = persona.rol === 'CAPTURISTA'

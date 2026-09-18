@@ -102,6 +102,18 @@ export async function auditarAlmacen() {
   };
 }
 
+/** Sólo la administración global retira archivos del almacén.
+ *
+ *  El filtro de `middleware.js` ya impide llegar a esta pantalla sin ese
+ *  perfil, y aun así la regla se repite aquí. Una regla que vive en una sola
+ *  puerta deja de valer en cuanto alguien abre otra: basta que una pantalla
+ *  futura, un punto de acceso o una tarea programada llamen a esta función
+ *  para que el único control desaparezca sin que nadie lo note. La
+ *  administración del personal hace lo mismo por la misma razón. */
+export function puedeAdministrarAlmacen(persona) {
+  return persona?.rol === 'ADMIN_GLOBAL';
+}
+
 /**
  * Retira los archivos sueltos y deja constancia.
  *
@@ -115,6 +127,12 @@ export async function auditarAlmacen() {
  * Un borrado sin registro de qué se borró no se puede investigar después.
  */
 export async function retirarSueltos(persona, confirmacion, ip) {
+  /* La autorización va antes que la validación del formulario: a quien no
+     tiene permiso no se le explica qué habría tenido que escribir. */
+  if (!puedeAdministrarAlmacen(persona)) {
+    return { error: 'No tienes permiso para retirar archivos del almacén.' };
+  }
+
   if (String(confirmacion ?? '').trim().toUpperCase() !== 'RETIRAR') {
     return { error: 'Para retirar los archivos hay que escribir RETIRAR.' };
   }

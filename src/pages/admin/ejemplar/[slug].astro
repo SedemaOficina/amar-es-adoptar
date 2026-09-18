@@ -98,7 +98,10 @@ if (Astro.request.method === 'POST') {
           : `Se guardaron ${resultado.cambios} cambios.`;
       }
     } catch (e) {
-      errores = { general: `No se pudo guardar: ${e.message}` };
+      /* Ver el comentario de `catalogo.astro`: el detalle al registro, no a
+         la pantalla. */
+      console.error('[edición de ejemplar] falló el guardado:', e);
+      errores = { general: 'No se pudo guardar. Vuelve a intentarlo; si sigue igual, avisa a quien administra el sistema.' };
     }
   }
 

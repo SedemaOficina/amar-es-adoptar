@@ -1,0 +1,27 @@
+---
+/* Pantalla de error del servidor, con la identidad del sitio en lugar de la de
+ * Astro.
+ *
+ * NO MUESTRA EL DETALLE DEL ERROR. Astro le entrega aquí el objeto `error`, y
+ * es tentador pintarlo: en una pantalla pública puede llevar fragmentos de
+ * SQL, nombres de columna o rutas del servidor. El detalle vive en el registro
+ * del servidor, que es donde alguien puede hacer algo con él.
+ */
+import Base from '../layouts/Base.astro';
+---
+
+<Base titulo="Error del servidor">
+  <div class="contenedor error">
+    <p class="antetitulo">Error 500</p>
+    <h1>Algo falló de nuestro lado</h1>
+    <p>No es culpa tuya ni de lo que escribiste. Vuelve a intentarlo en unos minutos.</p>
+    <p class="cta"><a class="boton boton-solido" href="/">Volver al inicio</a></p>
+  </div>
+</Base>
+
+<style>
+  .error { text-align: center; padding-block: 72px 88px; max-width: 34rem; }
+  .error h1 { color: var(--alto); font-size: 1.875rem; margin: 0 0 14px; }
+  .error p { color: var(--gris); }
+  .cta { margin-top: 28px; }
+</style>

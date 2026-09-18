@@ -61,7 +61,14 @@ const modulos = [
                 : `Capturista · ${persona.centro_etiqueta}`}
             </span>
           </p>
-          <a class="salir" href="/admin/salir">Cerrar sesión</a>
+          {/* Cerrar sesión es un POST y no un enlace. Con un enlace, cualquier
+              sitio ajeno puede cerrarle la sesión a quien esté trabajando con
+              sólo incrustar una imagen que apunte aquí: el navegador la pide
+              sola. No es peligroso —nadie entra a nada—, pero es una molestia
+              gratuita que se evita con un formulario. */}
+          <form method="POST" action="/admin/salir" class="forma-salir">
+            <button type="submit" class="salir">Cerrar sesión</button>
+          </form>
         </div>
       </div>
 
@@ -97,7 +104,14 @@ const modulos = [
   .quien { margin: 0; text-align: right; }
   .quien .nombre { display: block; font-size: 0.875rem; font-weight: 500; color: var(--texto); }
   .quien .perfil { display: block; font-size: 0.75rem; color: var(--gris-claro); }
-  .salir { font-size: 0.8125rem; color: var(--principal); white-space: nowrap; }
+  .forma-salir { margin: 0; }
+  /* El botón se viste de enlace: es la misma acción de siempre y no debe
+     cambiar de aspecto sólo porque por dentro pasó de GET a POST. */
+  .salir {
+    font-size: 0.8125rem; color: var(--principal); white-space: nowrap;
+    background: none; border: 0; padding: 0;
+    font-family: inherit; text-decoration: underline; cursor: pointer;
+  }
 
   .modulos { border-top: 1px solid var(--linea); background: var(--crema); }
   .modulos .contenedor { display: flex; gap: 4px; flex-wrap: wrap; }

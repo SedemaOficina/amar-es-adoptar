@@ -87,7 +87,10 @@ if (Astro.request.method === 'POST') {
         return Astro.redirect(`/admin/ejemplar/${resultado.slug}?alta=1`);
       }
     } catch (e) {
-      errores = { general: `No se pudo guardar: ${e.message}` };
+      /* Ver el comentario de `catalogo.astro`: el detalle al registro, no a
+         la pantalla. */
+      console.error('[alta de ejemplar] falló el guardado:', e);
+      errores = { general: 'No se pudo guardar. Vuelve a intentarlo; si sigue igual, avisa a quien administra el sistema.' };
     }
   }
 

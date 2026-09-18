@@ -36,7 +36,12 @@ try {
   catalogos = await obtenerCatalogos();
   resultado = await buscarEjemplares(persona, filtros, clavesDe(catalogos));
 } catch (e) {
-  error = e.message;
+  /* El detalle va al registro del servidor, no a la pantalla: el mensaje de
+     una excepción puede llevar fragmentos de SQL o nombres de columna. Quien
+     mira la pantalla no puede hacer nada con eso, y es justo lo que el
+     formulario público ya se cuida de no enseñar. */
+  console.error('[catálogo] falló la consulta:', e);
+  error = 'Vuelve a intentarlo en unos minutos; si sigue igual, avisa a quien administra el sistema.';
 }
 
 const esGlobal = persona.rol === 'ADMIN_GLOBAL';
