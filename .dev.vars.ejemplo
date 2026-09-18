@@ -19,3 +19,19 @@ SESSION_SECRET=
 # OIDC_CLIENTE_ID=
 # OIDC_CLIENTE_SECRETO=
 # OIDC_ALCANCE=openid profile email
+
+# --- Llave CDMX para la ciudadanía (formulario de adopción) -----------------
+# Es un cliente distinto del anterior: otra población y otra dirección de
+# retorno. Mientras estén vacías, en desarrollo opera la identificación
+# simulada y fuera de desarrollo el portal avisa que el trámite no está
+# habilitado.
+#
+# La dirección de retorno que hay que registrar ante ADIP es:
+#     https://<dominio-del-sitio>/adoptar/callback
+#
+# LLAVE_AUTORIZACION=
+# LLAVE_TOKEN=
+# LLAVE_USUARIO=
+# LLAVE_CLIENTE_ID=
+# LLAVE_CLIENTE_SECRETO=
+# LLAVE_ALCANCE=openid profile email curp

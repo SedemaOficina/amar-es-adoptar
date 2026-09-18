@@ -1,0 +1,112 @@
+---
+/* Puerta de identificación de la persona solicitante.
+ *
+ * Con Llave CDMX configurada, esta página no se ve: redirige al proveedor y
+ * la persona vuelve a /adoptar/callback.
+ *
+ * Sin proveedor real y en desarrollo, muestra las personas de prueba, igual
+ * que la pantalla de acceso del personal. Fuera de desarrollo y sin proveedor,
+ * avisa que el trámite todavía no está habilitado en lugar de fallar.
+ */
+export const prerender = false;
+
+import Base from '../../../layouts/Base.astro';
+import {
+  obtenerParaVistaPublica, reconocible, admiteSolicitudes,
+} from '../../../servidor/ejemplares-publico.js';
+import {
+  hayProveedorReal, haySimulado, urlDeAutorizacion, PERSONAS_SIMULADAS,
+} from '../../../servidor/identidad-ciudadana.js';
+
+const { slug } = Astro.params;
+
+const ejemplar = await obtenerParaVistaPublica(slug);
+if (!reconocible(ejemplar)) return new Response(null, { status: 404 });
+if (!admiteSolicitudes(ejemplar)) return Astro.redirect(`/adoptar/${slug}`);
+
+if (hayProveedorReal()) {
+  // El estado protege contra que alguien provoque un retorno ajeno; el
+  // destino recuerda a qué ejemplar volver, porque la dirección de retorno
+  // que ADIP registra es una sola para todo el portal.
+  const estado = crypto.randomUUID();
+  const seguro = Astro.url.protocol === 'https:';
+
+  Astro.cookies.set('llave_estado', estado, {
+    path: '/adoptar', httpOnly: true, secure: seguro, sameSite: 'lax', maxAge: 600,
+  });
+  Astro.cookies.set('llave_destino', slug, {
+    path: '/adoptar', httpOnly: true, secure: seguro, sameSite: 'lax', maxAge: 600,
+  });
+
+  return Astro.redirect(urlDeAutorizacion(Astro.url, estado));
+}
+---
+<Base titulo={`Identificación · ${ejemplar.nombre}`}>
+  <div class="contenedor pagina">
+    <p class="migaja"><a href={`/adoptar/${slug}`}>‹ Regresar</a></p>
+
+    <h1>Identificación</h1>
+
+    {haySimulado() ? (
+      <>
+        <div class="advertencia">
+          <p><strong>Identificación simulada de desarrollo.</strong></p>
+          <p>
+            Llave CDMX todavía no está conectada. Mientras tanto puedes entrar como una de
+            estas personas de prueba, que no existen: sus datos son inventados y quedan
+            marcados como tales en todo lo que generen.
+          </p>
+        </div>
+
+        <ul class="personas">
+          {PERSONAS_SIMULADAS.map((p) => (
+            <li>
+              <form method="POST" action="/adoptar/callback">
+                <input type="hidden" name="dev_sub" value={p.sub} />
+                <input type="hidden" name="destino" value={slug} />
+                <div class="datos">
+                  <p class="nombre">{p.nombres} {p.primer_apellido} {p.segundo_apellido}</p>
+                  <p class="detalle">
+                    {p.calle
+                      ? `${p.calle} ${p.numero_exterior}, ${p.colonia}, ${p.alcaldia}`
+                      : 'Sin domicilio en su cuenta: habrá que capturarlo'}
+                  </p>
+                </div>
+                <button type="submit" class="boton boton-linea">Entrar así</button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      </>
+    ) : (
+      <div class="advertencia">
+        <p><strong>El trámite en línea todavía no está habilitado.</strong></p>
+        <p>
+          La identificación con Llave CDMX no está configurada en este ambiente. Vuelve a
+          intentarlo más tarde o acude al centro de atención correspondiente.
+        </p>
+      </div>
+    )}
+  </div>
+</Base>
+
+<style>
+  .pagina { padding-block: 40px 64px; max-width: var(--ancho-lectura); }
+  h1 { color: var(--principal); font-size: 1.75rem; margin: 0 0 20px; }
+
+  .advertencia {
+    border-left: 3px solid var(--dorado); background: var(--crema);
+    padding: 14px 16px; color: var(--gris); margin-bottom: 24px;
+  }
+  .advertencia p { margin: 0 0 8px; }
+  .advertencia p:last-child { margin-bottom: 0; }
+
+  .personas { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+  .personas form {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+    border: 1px solid var(--linea); border-radius: 8px; padding: 14px 16px;
+  }
+  .nombre { margin: 0; font-weight: 500; color: var(--texto); }
+  .detalle { margin: 2px 0 0; font-size: 0.8125rem; color: var(--gris-claro); }
+</style>

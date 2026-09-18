@@ -1,0 +1,121 @@
+---
+/* Plantilla de las páginas de administración.
+   No reutiliza la del portal público a propósito: aquí no va la banda de
+   navegación ciudadana, sino el menú de módulos y la barra de sesión. */
+/* Las tipografías van antes que los estilos: primero se declara con qué se
+   escribe, después cómo se ve. Astro junta las dos hojas en una sola. */
+import '../estilos/tipografias.css';
+import '../estilos/global.css';
+
+/* `ancho` decide de qué tamaño es la columna de TODA la pantalla: encabezado,
+   menú y contenido usan la misma, para que el logotipo, «Cerrar sesión» y el
+   contenido compartan los dos bordes. Antes el encabezado ocupaba 1180 px y
+   el contenido 46 rem, y la diferencia —más de 400 px— se leía como si la
+   página estuviera pegada a la izquierda.
+     lectura  una ficha, un formulario: una sola columna de lectura.
+     amplio   un listado o un tablero: necesita el ancho. */
+const { titulo, persona, ancho = 'amplio' } = Astro.props;
+const ruta = Astro.url.pathname.replace(/\/+$/, '') || '/admin';
+const columna = ancho === 'lectura' ? 'contenedor columna-lectura' : 'contenedor';
+
+const modulos = [
+  { href: '/admin', texto: 'Inicio' },
+  { href: '/admin/catalogo', texto: 'Catálogo' },
+  { href: '/admin/ejemplar/nuevo', texto: 'Nuevo ejemplar' },
+  { href: '/admin/solicitudes', texto: 'Solicitudes' },
+  { href: '/admin/indicadores', texto: 'Indicadores' },
+  /* Los dos últimos no son operación diaria sino administración del sistema:
+     quién entra, y si la base y el almacén siguen de acuerdo. Lo decide la
+     Secretaría, no cada centro. */
+  ...(persona.rol === 'ADMIN_GLOBAL'
+    ? [{ href: '/admin/personal', texto: 'Personal' },
+       { href: '/admin/almacen', texto: 'Almacén' }]
+    : []),
+];
+---
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titulo} · Administración · Amar es Adoptar</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="/imagenes/marca/isotipo.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <a href="#contenido" class="salto-contenido">Ir al contenido principal</a>
+
+    <header class="cabecera-admin">
+      <div class={`${columna} fila`}>
+        <a href="/admin" class="marca">
+          <img src="/imagenes/logo-sedema.png" alt="Secretaría del Medio Ambiente" />
+          <span>Administración</span>
+        </a>
+
+        <div class="sesion">
+          <p class="quien">
+            <span class="nombre">{persona.nombre}</span>
+            <span class="perfil">
+              {persona.rol === 'ADMIN_GLOBAL'
+                ? 'Administración global'
+                : `Capturista · ${persona.centro_etiqueta}`}
+            </span>
+          </p>
+          <a class="salir" href="/admin/salir">Cerrar sesión</a>
+        </div>
+      </div>
+
+      <nav class="modulos" aria-label="Módulos de administración">
+        <div class={columna}>
+          {modulos.map((m) => (
+            <a href={m.href} aria-current={ruta === m.href ? 'page' : undefined}>{m.texto}</a>
+          ))}
+        </div>
+      </nav>
+    </header>
+
+    <main id="contenido" class={`${columna} cuerpo-admin`}>
+      <slot />
+    </main>
+  </body>
+</html>
+
+<style>
+  .cabecera-admin { border-bottom: 1px solid var(--linea); background: var(--blanco); }
+  .fila {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; padding-block: 14px;
+  }
+  .marca { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+  .marca img { height: 34px; width: auto; }
+  .marca span {
+    font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--gris-claro); border-left: 1px solid var(--linea); padding-left: 12px;
+  }
+
+  .sesion { display: flex; align-items: center; gap: 18px; }
+  .quien { margin: 0; text-align: right; }
+  .quien .nombre { display: block; font-size: 0.875rem; font-weight: 500; color: var(--texto); }
+  .quien .perfil { display: block; font-size: 0.75rem; color: var(--gris-claro); }
+  .salir { font-size: 0.8125rem; color: var(--principal); white-space: nowrap; }
+
+  .modulos { border-top: 1px solid var(--linea); background: var(--crema); }
+  .modulos .contenedor { display: flex; gap: 4px; flex-wrap: wrap; }
+  .modulos a {
+    padding: 11px 16px; font-size: 0.9375rem; color: var(--gris);
+    text-decoration: none; border-bottom: 3px solid transparent;
+  }
+  .modulos a:hover { color: var(--principal); }
+  .modulos a[aria-current="page"] {
+    color: var(--principal); font-weight: 500; border-bottom-color: var(--principal);
+  }
+
+  .cuerpo-admin { padding-block: 30px 64px; }
+
+  /* La columna de lectura incluye el margen lateral, de modo que el borde
+     izquierdo del logotipo y el del contenido caen exactamente en el mismo
+     punto. */
+  :global(.columna-lectura) {
+    max-width: calc(var(--ancho-lectura) + var(--gutter) * 2);
+  }
+</style>

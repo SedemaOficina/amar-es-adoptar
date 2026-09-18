@@ -1,0 +1,205 @@
+---
+/* Estado del almacén de fotografías.
+ *
+ * La base y el almacén son dos sistemas distintos que tienen que coincidir, y
+ * hasta esta pantalla nada los comparaba. El razonamiento completo —por qué
+ * hace falta, por qué los dos desajustes no son iguales, y por qué es una
+ * pantalla y no un guion de terminal— está en `servidor/almacen-auditoria.js`.
+ *
+ * Es la única pantalla del sistema que habla de infraestructura y no de
+ * animales. Por eso vive aparte, sólo la ve la administración global, y su
+ * texto explica qué significa cada desajuste: quien la abra un martes por la
+ * mañana no tiene por qué acordarse.
+ */
+export const prerender = false;
+
+import Administracion from '../../layouts/Administracion.astro';
+import { auditarAlmacen, retirarSueltos } from '../../servidor/almacen-auditoria.js';
+
+const persona = Astro.locals.persona;
+const ip = Astro.request.headers.get('cf-connecting-ip');
+
+let aviso = null;
+let error = null;
+
+if (Astro.request.method === 'POST') {
+  const forma = await Astro.request.formData();
+  const r = await retirarSueltos(persona, forma.get('confirmacion'), ip);
+  aviso = r.aviso ?? null;
+  error = r.error ?? null;
+}
+
+/* Se audita DESPUÉS de la acción, nunca antes: si se retiraron archivos, lo
+   que hay que pintar es el estado de ahora y no el de hace un segundo. */
+const { referencias, objetos, rotos, sueltos, bytesSueltos } = await auditarAlmacen();
+
+const todoCoincide = rotos.length === 0 && sueltos.length === 0;
+
+/* Un tamaño se lee en la unidad en que la persona piensa, no en bytes. */
+function peso(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} kB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+
+/* La lista de sueltos puede ser larga. Se muestran los primeros y se dice
+   cuántos quedan: una lista de dos mil renglones no informa, estorba. */
+const MUESTRA = 40;
+const sueltosVisibles = sueltos.slice(0, MUESTRA);
+const sueltosOcultos = sueltos.length - sueltosVisibles.length;
+---
+<Administracion titulo="Almacén" persona={persona}>
+  <div class="encabezado">
+    <h1>Estado del almacén</h1>
+    <p class="intro">
+      Las fotografías viven en dos lugares a la vez: el archivo en el almacén y su
+      dirección en la base. Esta pantalla comprueba que los dos digan lo mismo. Es la
+      única comprobación que los cruza, así que conviene abrirla después de cualquier
+      carga masiva o borrado.
+    </p>
+  </div>
+
+  {aviso && <p class="mensaje bien">{aviso}</p>}
+  {error && <p class="mensaje mal">{error}</p>}
+
+  <div class="tarjetas">
+    <div class="dato">
+      <p class="cifra">{referencias}</p>
+      <p class="que">direcciones guardadas en la base</p>
+    </div>
+    <div class="dato">
+      <p class="cifra">{objetos}</p>
+      <p class="que">archivos en el almacén</p>
+    </div>
+  </div>
+
+  {todoCoincide && (
+    <p class="mensaje bien">
+      Todo coincide. Cada dirección de la base tiene su archivo, y ningún archivo está
+      de más.
+    </p>
+  )}
+
+  {rotos.length > 0 && (
+    <section class="bloque roto">
+      <h2>Fichas con la imagen perdida</h2>
+      <p class="explica">
+        La base apunta a {plural(rotos.reduce((s, r) => s + r.claves.length, 0), 'archivo', 'archivos')}
+        {' '}que no {rotos.reduce((s, r) => s + r.claves.length, 0) === 1 ? 'está' : 'están'} en el almacén.
+        <strong> Esto sí se ve:</strong> en el portal público la fotografía sale rota.
+      </p>
+      <p class="explica">
+        No se arregla solo, y a propósito no hay botón: o se vuelve a subir la fotografía
+        desde la ficha del ejemplar, o se retira la que ya no existe. Las dos salidas
+        borran información, así que las decide una persona.
+      </p>
+
+      <ul class="lista">
+        {rotos.map((r) => (
+          <li>
+            <p class="quien">
+              <a href={`/admin/ejemplar/${r.slug}`}>{r.nombre}</a>
+              <span class="folio">{r.centro} · {r.folio}</span>
+              {r.es_ficticio === 1 && <span class="ficticia">ficticio</span>}
+            </p>
+            <ul class="claves">
+              {r.claves.map((c) => <li><code>{c.clave}</code></li>)}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  {sueltos.length > 0 && (
+    <section class="bloque suelto">
+      <h2>Archivos sin dueño</h2>
+      <p class="explica">
+        {plural(sueltos.length, 'archivo', 'archivos')} que ningún renglón de la base
+        apunta, {peso(bytesSueltos)} en total. No se ven en ninguna parte del sitio y
+        no rompen nada, pero el almacén se cobra por lo que guarda. Suelen quedar de un
+        borrado hecho fuera del sistema o de una carga que se interrumpió.
+      </p>
+
+      <ul class="claves sueltas">
+        {sueltosVisibles.map((o) => (
+          <li><code>{o.clave}</code> <span class="peso">{peso(o.bytes ?? 0)}</span></li>
+        ))}
+      </ul>
+      {sueltosOcultos > 0 && (
+        <p class="explica">Y {plural(sueltosOcultos, 'archivo más', 'archivos más')}.</p>
+      )}
+
+      <form method="POST" class="retirar">
+        <p class="explica">
+          Retirarlos es seguro: por definición ninguna ficha los usa. Queda constancia en
+          la bitácora, con la lista completa de lo que se retiró.
+        </p>
+        <label for="confirmacion">Para confirmar, escribe <strong>RETIRAR</strong></label>
+        <div class="confirmar-mandos">
+          <input id="confirmacion" name="confirmacion" type="text" autocomplete="off"
+                 required placeholder="RETIRAR" />
+          <button type="submit" class="boton boton-solido">
+            Retirar {plural(sueltos.length, 'archivo', 'archivos')}
+          </button>
+        </div>
+      </form>
+    </section>
+  )}
+</Administracion>
+
+<style>
+  .encabezado { margin-bottom: 20px; }
+  .intro { color: var(--gris); max-width: 62ch; margin: 6px 0 0; }
+
+  .tarjetas { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+  .dato {
+    border: 1px solid var(--linea); border-radius: 10px;
+    padding: 14px 18px; min-width: 200px; background: var(--blanco);
+  }
+  .cifra { margin: 0; font-family: var(--titulos); font-size: 1.75rem; color: var(--principal); }
+  .que { margin: 2px 0 0; font-size: 0.8125rem; color: var(--gris); }
+
+  .mensaje { border-radius: 8px; padding: 12px 14px; margin: 0 0 18px; font-size: 0.9375rem; }
+  .bien { background: var(--exito-fondo); color: var(--exito); border: 1px solid var(--exito); }
+  .mal { background: var(--alto-fondo); color: var(--alto); border: 1px solid var(--alto); }
+
+  /* Los dos bloques se distinguen por color porque significan cosas distintas:
+     uno es un defecto visible para la ciudadanía, el otro es limpieza. El
+     color nunca va solo: cada uno lleva además su título y su explicación. */
+  .bloque { border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+  .roto { background: var(--alto-fondo); border: 1px solid var(--alto); }
+  .suelto { background: var(--inactivo-fondo); border: 1px solid var(--linea-campo); }
+
+  .bloque h2 { margin: 0 0 8px; font-size: 1.125rem; }
+  .roto h2 { color: var(--alto); }
+  .explica { margin: 0 0 10px; font-size: 0.9375rem; color: var(--gris); max-width: 70ch; }
+
+  .lista { list-style: none; padding: 0; margin: 14px 0 0; }
+  .lista > li { padding: 10px 0; border-top: 1px solid var(--linea); }
+  .quien { margin: 0 0 6px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .quien a { font-weight: 500; }
+  .folio { font-size: 0.8125rem; color: var(--gris-claro); }
+  .ficticia {
+    font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--gris); border: 1px solid var(--linea-campo);
+    border-radius: 999px; padding: 1px 8px;
+  }
+
+  .claves { list-style: none; padding: 0; margin: 0; }
+  .claves li { font-size: 0.8125rem; color: var(--gris); padding: 2px 0; }
+  .claves code { font-size: 0.8125rem; word-break: break-all; }
+  .sueltas { max-height: 280px; overflow: auto; margin-bottom: 12px; }
+  .peso { color: var(--gris-claro); }
+
+  .retirar { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--linea); }
+  .retirar label { display: block; font-size: 0.875rem; margin-bottom: 6px; }
+  .confirmar-mandos { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .confirmar-mandos input {
+    font-family: var(--cuerpo); font-size: 0.9375rem; padding: 10px 12px;
+    border: 1px solid var(--linea-campo); border-radius: 8px; min-height: 44px;
+    width: 180px;
+  }
+</style>

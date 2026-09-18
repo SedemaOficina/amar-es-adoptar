@@ -1,0 +1,61 @@
+---
+/* Página de «no encontrado» de la administración — C-11.
+ *
+ * QUÉ CUBRE, QUE SON DOS COSAS DISTINTAS
+ *
+ *   1. Una dirección de /admin que no existe. Antes caía en la 404 del portal
+ *      público: quien estaba trabajando dentro de la administración se
+ *      encontraba de pronto con el encabezado ciudadano, la banda de
+ *      navegación del portal y un botón que invitaba a «Ver el catálogo»
+ *      público. Salir del sistema por equivocarse de dirección no es un error
+ *      grave, pero desconcierta.
+ *
+ *   2. Una dirección que sí existe pero que el perfil no puede ver
+ *      —Personal y Almacén son sólo de la administración global—. Ahí el
+ *      filtro respondía un 404 en blanco: correcto de fondo, y una pantalla
+ *      vacía de forma. El middleware ahora reescribe a esta página.
+ *
+ * POR QUÉ SIGUE DICIENDO «NO EXISTE» Y NO «NO PUEDES»
+ *
+ * Es la misma decisión que ya estaba en `middleware.js`, y se conserva: a
+ * quien captura en un centro no le sirve de nada enterarse de que existe una
+ * pantalla que no puede abrir. Un «no tienes permiso» es una invitación a
+ * pedirlo, o a preguntarse qué se esconde ahí. Por eso el texto es idéntico
+ * para los dos casos y no distingue cuál ocurrió.
+ *
+ * Y por eso el código de estado sigue siendo 404 y no 403: si dijera 403, el
+ * propio navegador estaría revelando lo que el texto calla.
+ */
+export const prerender = false;
+
+import Administracion from '../../layouts/Administracion.astro';
+
+const persona = Astro.locals.persona;
+
+/* El estado se fija a mano porque esto es una página como cualquier otra: si
+   no se dijera, respondería 200 y un buscador —o el propio historial del
+   navegador— la trataría como una página buena. */
+Astro.response.status = 404;
+---
+<Administracion titulo="Página no encontrada" persona={persona} ancho="lectura">
+  <div class="error">
+    <p class="antetitulo">Error 404</p>
+    <h1>No encontramos esta página</h1>
+    <p>
+      Puede que la dirección esté mal escrita o que la pantalla ya no exista. Desde el
+      menú de arriba puedes seguir trabajando.
+    </p>
+    <p class="cta"><a class="boton boton-solido" href="/admin">Volver al inicio</a></p>
+  </div>
+</Administracion>
+
+<style>
+  .error { text-align: center; padding-block: 64px 80px; }
+  .antetitulo {
+    font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--gris-claro); margin: 0 0 8px;
+  }
+  .error h1 { color: var(--alto); font-size: 1.75rem; margin: 0 0 14px; }
+  .error p { color: var(--gris); }
+  .cta { margin-top: 28px; }
+</style>

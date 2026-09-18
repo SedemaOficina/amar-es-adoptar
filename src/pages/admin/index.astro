@@ -1,112 +1,136 @@
 ---
-/* Página de diagnóstico de la conexión con la base de datos.
-   Es la primera página que se genera en el servidor: comprueba que el
-   Worker alcanza D1 y que los catálogos y los ejemplares están donde
-   deben. Se sustituye por el catálogo de administración en el paso 4. */
+/* Inicio de la administración: qué hay y qué se puede hacer. */
 export const prerender = false;
 
-import Base from '../../layouts/Base.astro';
-import { obtenerBase } from '../../servidor/base-de-datos.js';
+import Administracion from '../../layouts/Administracion.astro';
+import { resumen } from '../../servidor/ejemplares-admin.js';
 
-// La persona la deja aquí el filtro de acceso (src/middleware.js).
-// Si esta página se está mostrando, es que ya pasó el control de sesión.
 const persona = Astro.locals.persona;
 
+let cifras = null;
 let error = null;
-let resumen = null;
 
 try {
-  const db = obtenerBase();
-
-  const [ejemplares, fotografias, usuarios, porCentro, porCondicion] = await Promise.all([
-    db.prepare('SELECT COUNT(*) AS n, SUM(es_ficticio) AS ficticios FROM ejemplar').first(),
-    db.prepare('SELECT COUNT(*) AS n FROM fotografia').first(),
-    db.prepare('SELECT COUNT(*) AS n FROM usuario').first(),
-    db.prepare(`SELECT c.etiqueta, COUNT(e.id) AS n
-                FROM centro c LEFT JOIN ejemplar e ON e.centro_actual_clave = c.clave
-                GROUP BY c.clave ORDER BY c.orden`).all(),
-    db.prepare(`SELECT condicion, COUNT(*) AS n FROM ejemplar
-                GROUP BY condicion ORDER BY condicion`).all(),
-  ]);
-
-  resumen = { ejemplares, fotografias, usuarios, porCentro: porCentro.results, porCondicion: porCondicion.results };
+  cifras = await resumen(persona);
 } catch (e) {
   error = e.message;
 }
+
+const alcance = persona.rol === 'CAPTURISTA'
+  ? `Estás viendo únicamente los ejemplares de ${persona.centro_etiqueta}.`
+  : 'Estás viendo los ejemplares de los tres centros.';
 ---
-<Base titulo="Diagnóstico">
-  <div class="contenedor diagnostico">
-    <div class="barra-sesion">
-      <p class="quien">
-        <span class="nombre">{persona.nombre}</span>
-        <span class="perfil">
-          {persona.rol === 'ADMIN_GLOBAL'
-            ? 'Administración global'
-            : `Capturista · ${persona.centro_etiqueta}`}
-        </span>
+<Administracion titulo="Inicio" persona={persona}>
+  <h1>Hola, {persona.nombre.split(' ')[0]}</h1>
+  <p class="alcance">{alcance}</p>
+
+  {error && <p class="error"><strong>No hay conexión con la base.</strong> {error}</p>}
+
+  {cifras && (
+    <>
+      <dl class="cifras">
+        <div>
+          <dt>Disponibles</dt>
+          <dd>{cifras.disponibles}</dd>
+        </div>
+        <div>
+          <dt>En proceso</dt>
+          <dd>{cifras.enProceso}</dd>
+        </div>
+        <div>
+          <dt>Adoptados</dt>
+          <dd>{cifras.adoptados}</dd>
+        </div>
+        <div class="apagada">
+          <dt>Total registrados</dt>
+          <dd>{cifras.total}</dd>
+        </div>
+      </dl>
+
+      <p class="accion">
+        <a class="boton boton-solido" href="/admin/catalogo">Ir al catálogo</a>
       </p>
-      <a class="salir" href="/admin/salir">Cerrar sesión</a>
+    </>
+  )}
+
+  <section class="estado-sistema">
+    <h2>Estado del sistema</h2>
+    <p class="nota">
+      Esta sección es de desarrollo: se retira al entregar la plataforma.
+    </p>
+
+    <div class="dos-columnas">
+      <div>
+        <h3>Funcionando</h3>
+        <ul class="listo">
+          <li>Catálogo con filtros, búsqueda y ordenamiento</li>
+          <li>Alta y edición de ejemplar, con bitácora</li>
+          <li>Fotografías con recorte y cuatro tamaños</li>
+          <li>Baja y borrado de ejemplar, con respaldo en bitácora</li>
+          <li>Portal público alimentado por esta misma base</li>
+          <li>Solicitudes de adopción: formulario, recepción y seguimiento</li>
+          <li>Descarga de solicitudes en CSV</li>
+          <li>Indicadores de operación</li>
+          <li>Personal con acceso, con alcance por centro</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3>Falta</h3>
+        <ul class="falta">
+          <li>Montar Llave CDMX — depende de ADIP</li>
+          <li>Aviso de privacidad — depende de la Unidad de Transparencia</li>
+          <li>Cuenta institucional de Cloudflare — depende de Administración</li>
+          <li>Retirar los registros de prueba y cargar el padrón real</li>
+          <li>Accesibilidad, rendimiento y paquete de entrega (etapa 6)</li>
+        </ul>
+      </div>
     </div>
-
-    <p class="antetitulo">Administración</p>
-    <h1>Diagnóstico de la base de datos</h1>
-
-    {error && (
-      <p class="error"><strong>No hay conexión.</strong> {error}</p>
-    )}
-
-    {resumen && (
-      <>
-        <p class="ok">Conexión establecida con la base <code>amar-es-adoptar</code>.</p>
-
-        <dl class="cifras">
-          <div>
-            <dt>Ejemplares</dt>
-            <dd>{resumen.ejemplares.n} <span>({resumen.ejemplares.ficticios} ficticios)</span></dd>
-          </div>
-          <div>
-            <dt>Fotografías</dt>
-            <dd>{resumen.fotografias.n}</dd>
-          </div>
-          <div>
-            <dt>Personal registrado</dt>
-            <dd>{resumen.usuarios.n}</dd>
-          </div>
-        </dl>
-
-        <h2>Por centro</h2>
-        <ul>
-          {resumen.porCentro.map((f) => <li>{f.etiqueta}: <strong>{f.n}</strong></li>)}
-        </ul>
-
-        <h2>Por condición</h2>
-        <ul>
-          {resumen.porCondicion.map((f) => <li>{f.condicion}: <strong>{f.n}</strong></li>)}
-        </ul>
-      </>
-    )}
-  </div>
-</Base>
+  </section>
+</Administracion>
 
 <style>
-  .diagnostico { padding-block: 26px 56px; max-width: 46rem; }
-
-  .barra-sesion {
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 16px; flex-wrap: wrap;
-    border-bottom: 1px solid var(--linea); padding-bottom: 14px; margin-bottom: 24px;
+  .estado-sistema { margin-top: 44px; border-top: 1px solid var(--linea); padding-top: 24px; }
+  .estado-sistema h2 {
+    font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--gris); margin: 0 0 6px;
   }
-  .quien { margin: 0; }
-  .quien .nombre { display: block; font-weight: 500; color: var(--texto); }
-  .quien .perfil { display: block; font-size: 0.8125rem; color: var(--gris-claro); }
-  .salir { font-size: 0.875rem; color: var(--guinda); }
-  h1 { color: var(--guinda); font-size: 1.625rem; margin: 0 0 18px; }
-  h2 { color: var(--texto); font-size: 1rem; margin: 26px 0 8px; }
-  ul { color: var(--gris); padding-left: 20px; }
-  .ok { color: var(--gris); border-left: 3px solid var(--dorado); padding-left: 14px; }
-  .error { color: var(--guinda); border-left: 3px solid var(--guinda); padding-left: 14px; }
-  .cifras { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin: 24px 0 0; }
-  .cifras dt { font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gris-claro); }
-  .cifras dd { margin: 4px 0 0; font-family: var(--titulos); font-size: 1.5rem; color: var(--guinda); }
-  .cifras dd span { font-family: var(--cuerpo); font-size: 0.8125rem; color: var(--gris-claro); }
+  .estado-sistema .nota { margin: 0 0 18px; font-size: 0.8125rem; color: var(--gris-claro); }
+  .estado-sistema h3 {
+    font-size: 0.875rem; font-family: var(--cuerpo); font-weight: 500;
+    color: var(--texto); margin: 0 0 8px;
+  }
+  .dos-columnas { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .estado-sistema ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+  .estado-sistema li {
+    font-size: 0.875rem; color: var(--gris);
+    display: grid; grid-template-columns: 1.25rem 1fr; align-items: baseline;
+  }
+  .listo li::before { content: '✓'; color: var(--exito); font-weight: 700; }
+  .falta li::before { content: '·'; color: var(--gris-claro); font-weight: 700; }
+
+  h1 { color: var(--principal); font-size: 1.625rem; margin: 0 0 6px; }
+  .alcance { color: var(--gris); margin: 0 0 28px; }
+
+  .error { color: var(--alto); border-left: 3px solid var(--alto); padding-left: 14px; }
+
+  .cifras {
+    display: grid; gap: 14px; margin: 0;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  .cifras div {
+    border: 1px solid var(--linea); border-radius: 10px; padding: 16px 18px;
+  }
+  .cifras dt {
+    font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--gris-claro);
+  }
+  .cifras dd {
+    margin: 6px 0 0; font-family: var(--titulos); font-weight: 700;
+    font-size: 1.875rem; color: var(--principal);
+  }
+  .cifras .apagada dd { color: var(--gris); }
+
+  .accion { margin: 26px 0 0; }
+
 </style>

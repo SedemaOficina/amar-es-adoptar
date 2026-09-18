@@ -1,0 +1,221 @@
+---
+/* Solicitudes de adopción recibidas.
+ *
+ * El listado NO muestra CURP ni domicilio a propósito: esos datos se ven al
+ * abrir la ficha, y abrir la ficha queda registrado como acceso a dato
+ * personal. Un listado que los mostrara convertiría cada vistazo en un acceso
+ * masivo sin rastro.
+ */
+export const prerender = false;
+
+import Administracion from '../../layouts/Administracion.astro';
+import {
+  buscar, ESTADOS, etiquetaEstado, POR_PAGINA, FILTRO_SIN_RESOLVER,
+} from '../../servidor/solicitudes-admin.js';
+import { urlFoto } from '../../servidor/fotografias.js';
+
+const persona = Astro.locals.persona;
+const p = Astro.url.searchParams;
+
+const resultado = await buscar(persona, {
+  estado: p.get('estado') ?? '',
+  texto: p.get('texto') ?? '',
+  pagina: p.get('pagina'),
+});
+
+const { solicitudes, total, pagina, paginas, estado, texto } = resultado;
+
+const fecha = (iso) =>
+  new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+
+const direccion = (cambios) => {
+  const q = new URLSearchParams();
+  const base = { estado, texto, pagina };
+  for (const [k, v] of Object.entries({ ...base, ...cambios })) {
+    if (v && !(k === 'pagina' && v === 1)) q.set(k, String(v));
+  }
+  const cadena = q.toString();
+  return cadena ? `/admin/solicitudes?${cadena}` : '/admin/solicitudes';
+};
+---
+<Administracion titulo="Solicitudes" persona={persona}>
+  <div class="encabezado">
+    <div>
+      <h1>Solicitudes de adopción</h1>
+      <p class="intro">
+        {persona.rol === 'CAPTURISTA'
+          ? `Solicitudes de los ejemplares de ${persona.centro_etiqueta}.`
+          : 'Solicitudes de todos los centros.'}
+      </p>
+    </div>
+    {/* Icono porque produce un archivo con datos personales, y porque cada
+        descarga queda registrada en bitácora (D-64): conviene que se vea que
+        es una acción, no un enlace más. */}
+    <a class="boton boton-linea" href="/admin/solicitudes/exportar">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+        <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+      </svg>
+      Descargar solicitudes (CSV)
+    </a>
+  </div>
+
+  <form method="GET" class="filtros">
+    <div class="campo">
+      <label for="texto">Buscar</label>
+      <input type="search" id="texto" name="texto" value={texto}
+             placeholder="Folio, nombre de la persona o del ejemplar" />
+    </div>
+    <div class="campo">
+      <label for="estado">Estado</label>
+      <select id="estado" name="estado" data-envia-al-cambiar>
+        <option value="">Todos</option>
+        <option value={FILTRO_SIN_RESOLVER} selected={estado === FILTRO_SIN_RESOLVER}>
+          Sin resolver (recibidas, en revisión y contactadas)
+        </option>
+        {ESTADOS.map((e) => (
+          <option value={e.clave} selected={estado === e.clave}>{e.etiqueta}</option>
+        ))}
+      </select>
+    </div>
+    <div class="acciones">
+      <button type="submit" class="boton boton-solido">Buscar</button>
+      {(estado || texto) && <a class="limpiar" href="/admin/solicitudes">Limpiar</a>}
+    </div>
+  </form>
+
+  <p class="conteo">
+    {total === 0
+      ? 'Sin solicitudes que mostrar.'
+      : total === 1 ? '1 solicitud.' : `${total} solicitudes.`}
+    {paginas > 1 && ` Página ${pagina} de ${paginas}.`}
+  </p>
+
+  {solicitudes.length > 0 && (
+    <ul class="lista">
+      {solicitudes.map((s) => (
+        <li>
+          <a href={`/admin/solicitudes/${s.folio}`}>
+            <img class="retrato" src={urlFoto(s.portada)} alt=""
+                 width="320" height="240" loading="lazy" />
+            <div class="principal">
+              <p class="folio">{s.folio}</p>
+              <p class="persona">
+                {s.nombres} {s.primer_apellido} {s.segundo_apellido}
+              </p>
+              <p class="ejemplar">
+                Solicita a <strong>{s.snap_nombre}</strong> · folio {s.snap_folio_interno}
+                {persona.rol !== 'CAPTURISTA' && ` · ${s.centro_clave}`}
+              </p>
+            </div>
+            <div class="lado">
+              <span class:list={['estado', `estado-${s.estado.toLowerCase()}`]}>
+                {etiquetaEstado(s.estado)}
+              </span>
+              <span class="cuando">{fecha(s.recibida_en)}</span>
+              {s.es_ficticio === 1 && <span class="ficticia">Prueba</span>}
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+
+  {paginas > 1 && (
+    <nav class="paginacion" aria-label="Paginación">
+      {pagina > 1 && <a class="boton boton-linea" href={direccion({ pagina: pagina - 1 })}>‹ Anterior</a>}
+      {pagina < paginas && <a class="boton boton-linea" href={direccion({ pagina: pagina + 1 })}>Siguiente ›</a>}
+    </nav>
+  )}
+</Administracion>
+
+<script>
+  /* El desplegable de estado filtra al cambiarlo, sin pedir un segundo clic.
+     El botón «Buscar» se queda: hace falta para el campo de texto y para que
+     la pantalla siga funcionando si el navegador no ejecuta JavaScript.
+     Un filtro que exige confirmar se confunde con uno que no funciona. */
+  const estado = document.querySelector('[data-envia-al-cambiar]');
+  estado?.addEventListener('change', () => estado.form.submit());
+</script>
+
+<style>
+  .encabezado {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 22px;
+  }
+  h1 { color: var(--principal); font-size: 1.5rem; margin: 0; }
+  .intro { margin: 4px 0 0; color: var(--gris); font-size: 0.9375rem; }
+
+  .filtros {
+    display: grid; gap: 14px; align-items: end; margin-bottom: 18px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 720px) {
+    .filtros { grid-template-columns: 2fr 1fr auto; }
+  }
+  .campo label {
+    display: block; font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--gris-claro); margin-bottom: 5px;
+  }
+  .campo input, .campo select {
+    width: 100%; padding: 9px 11px; font-family: var(--cuerpo); font-size: 0.9375rem;
+    border: 1px solid var(--linea-campo); border-radius: 6px; background: var(--blanco);
+    color: var(--texto);
+  }
+  .acciones { display: flex; align-items: center; gap: 12px; }
+  .limpiar { font-size: 0.8125rem; }
+
+  .conteo { color: var(--gris); font-size: 0.875rem; margin: 0 0 14px; }
+
+  .lista { list-style: none; padding: 0; margin: 0 0 24px; display: grid; gap: 10px; }
+  .lista a {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 16px; flex-wrap: wrap; text-decoration: none; color: inherit;
+    border: 1px solid var(--linea); border-radius: 10px; padding: 14px 16px;
+  }
+  /* La fotografía es apoyo visual, no información nueva: su texto alternativo
+     va vacío a propósito para que un lector de pantalla no lea dos veces el
+     nombre del ejemplar, que ya está en el renglón. */
+  .retrato {
+    width: 76px; aspect-ratio: 4 / 3; object-fit: cover; object-position: top center;
+    border-radius: 6px; background: var(--crema); flex: none; display: block;
+  }
+  .principal { flex: 1 1 14rem; min-width: 0; }
+  .lista a:hover { border-color: var(--principal); background: var(--crema); }
+
+  .folio {
+    font-family: ui-monospace, monospace; font-size: 0.8125rem;
+    color: var(--gris-claro); margin: 0;
+  }
+  .persona {
+    font-family: var(--titulos); font-weight: 700; font-size: 1.0625rem;
+    color: var(--texto); margin: 2px 0 0; overflow-wrap: anywhere;
+  }
+  .ejemplar { margin: 4px 0 0; font-size: 0.875rem; color: var(--gris); }
+
+  .lado { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .cuando { font-size: 0.8125rem; color: var(--gris-claro); }
+
+  .estado {
+    font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase;
+    border: 1px solid var(--linea); border-radius: 999px; padding: 4px 12px;
+    white-space: nowrap; color: var(--gris);
+  }
+  /* El color dice en qué punto del trámite está: guinda lo que espera
+     atención, ámbar lo que va en camino, verde lo resuelto a favor, gris lo
+     que ya salió del flujo. */
+  .estado-recibida    { border-color: var(--alto); background: var(--alto-fondo); color: var(--alto); }
+  .estado-en_revision { border-color: var(--atencion); background: var(--atencion-fondo); color: var(--gris); }
+  .estado-contactada  { border-color: var(--atencion); background: var(--atencion-fondo); color: var(--gris); }
+  .estado-aprobada    { border-color: var(--exito); background: var(--exito-fondo); color: var(--gris); }
+  .estado-rechazada   { border-color: var(--linea); background: var(--inactivo-fondo); color: var(--inactivo); }
+  .estado-concluida   { background: var(--crema); border-color: var(--linea); }
+
+  .ficticia {
+    font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase;
+    background: var(--principal); color: var(--blanco); border-radius: 4px; padding: 3px 8px;
+  }
+
+  .paginacion { display: flex; gap: 10px; justify-content: center; }
+</style>

@@ -11,7 +11,9 @@ equipo pueda levantar el proyecto desde cero sin preguntarle nada a quien lo con
 | npm | El que trae Node | |
 | Git | Cualquiera reciente | |
 
-No se requiere base de datos ni servidor para la etapa 1: el portal es estático.
+Se requiere además la base de datos local de Wrangler: desde la etapa 3 el portal público
+lee de la misma base que la administración, así que sin ella no arranca. El apartado 4
+explica cómo crearla.
 
 ## 2. Levantar el proyecto en local
 
@@ -81,44 +83,190 @@ npm run build
 npx wrangler deploy -c dist/server/wrangler.json
 ```
 
-### Recursos que Cloudflare crea solo
+### Recursos que hay que crear
 
-El adaptador declara un espacio KV con el enlace `SESSION`, que Cloudflare aprovisiona en
-el primer despliegue. El proyecto no lo usa: la sesión del personal viaja en una cookie
-firmada y la validez se comprueba contra la tabla `usuario` en cada petición, de modo que
-dar de baja a alguien surte efecto de inmediato. Queda declarado porque el adaptador lo
-incluye por omisión; puede retirarse sin consecuencias.
+| Recurso | Enlace | Para qué | Cómo se crea |
+|---|---|---|---|
+| Base D1 | `DB` | Toda la información del sistema | `npx wrangler d1 create amar-es-adoptar` |
+| Almacén R2 | `FOTOS` | Las fotografías de los ejemplares | `npx wrangler r2 bucket create amar-es-adoptar-fotos` |
+| Espacio KV | `SESSION` | Sesión de la persona solicitante | `npx wrangler kv namespace create SESSION` |
+
+Los tres identificadores se escriben en `wrangler.jsonc`. **Ninguno es opcional.**
+
+El espacio KV merece una advertencia, porque su nombre no lo dice: ahí viven los datos
+personales de quien llena una solicitud —nombre, CURP, domicilio y contacto— mientras dura
+el trámite. La cookie sólo lleva el identificador de la sesión; el contenido se queda del
+lado del servidor. Sin este enlace el formulario de adopción deja de funcionar.
+
+La sesión del **personal** es otra cosa y no usa ese espacio: viaja en una cookie firmada
+y se comprueba contra la tabla `usuario` en cada petición, de modo que dar de baja a
+alguien surte efecto de inmediato.
 
 ## 5. Variables de entorno
 
-Ninguna todavía. **El dominio no debe escribirse en el código en ningún punto**: cuando se
-requiera una dirección absoluta, se toma de `site` en `astro.config.mjs`, que a su vez se
-alimenta de una variable de entorno. Esto es lo que permite que ADIP monte el dominio
-institucional sin tocar código fuente.
-
-## 6. Base de datos (etapa 2)
-
-El esquema vive en `migraciones/`. Todavía no se ejecuta.
+La plantilla completa y comentada está en [`.dev.vars.ejemplo`](./.dev.vars.ejemplo). Se
+copia como `.dev.vars` para el trabajo local; **ese archivo nunca se versiona**. En
+producción los mismos valores se cargan como secretos:
 
 ```bash
-# Crear la base
-npx wrangler d1 create amar-es-adoptar
-
-# Aplicar el esquema en local y en remoto
-npx wrangler d1 execute amar-es-adoptar --local  --file=./migraciones/0001_inicial.sql
-npx wrangler d1 execute amar-es-adoptar --remote --file=./migraciones/0001_inicial.sql
+npx wrangler secret put SESSION_SECRET
 ```
 
-El esquema es SQL estándar, sin extensiones propietarias, para que pueda migrarse a
-PostgreSQL si la Secretaría o ADIP deciden alojarlo en otra infraestructura.
+| Variable | Obligatoria | Para qué |
+|---|---|---|
+| `SESSION_SECRET` | Sí | Firma la cookie de sesión del personal. Uno propio por ambiente; nunca se reutiliza. |
+| `OIDC_*` | No | Proveedor de identidad del **personal**. Vacías, en desarrollo opera el acceso simulado; fuera de desarrollo el sistema avisa que el acceso no está configurado. |
+| `LLAVE_*` | No | Proveedor de identidad de la **ciudadanía**. Mismo comportamiento. |
+
+Al llenar las variables del proveedor, éste entra en funcionamiento sin tocar código: es
+lo que convierte el montaje de Llave CDMX en configuración y no en reescritura.
+
+**El dominio no se escribe en el código en ningún punto.** Cuando se requiera una
+dirección absoluta se toma de `site` en `astro.config.mjs`, alimentado por variable de
+entorno. Esto permite que ADIP monte el dominio institucional sin tocar código fuente.
+
+## 6. Base de datos
+
+El esquema vive en `migraciones/`. **No se aplican a mano.** De aplicarlas se encarga
+`wrangler d1 migrations apply`, que lleva la cuenta de cuáles ya se corrieron en la tabla
+`d1_migrations` y sólo ejecuta las que faltan.
+
+Esto no es una comodidad, es una salvaguarda: varias migraciones **reconstruyen tablas**
+—la 0004 y la 0006 crean una tabla nueva, copian los datos y sustituyen la vieja—.
+Correrlas por segunda vez sobre datos reales es perder información.
+
+| Archivo | Qué hace |
+|---|---|
+| `0001_inicial.sql` | Esquema completo: catálogos, ejemplar, fotografía, solicitud, bitácora, personal. |
+| `0002_datos_ficticios.sql` | 30 ejemplares de prueba y las cuentas de desarrollo. Se retira antes de cargar datos reales. |
+| `0003_orden_fotografias.sql` | Admite una posición transitoria negativa para poder intercambiar el orden de dos fotografías. |
+| `0004_solicitud_estado.sql` | Los seis estados de la solicitud, con la fecha y la persona que hizo el último cambio. **Reconstruye `solicitud`.** |
+| `0005_solicitudes_ficticias.sql` | Solicitudes de prueba. Se retiran junto con el resto de los datos ficticios. |
+| `0006_baja_de_ejemplares.sql` | Condición de baja con motivo obligatorio, nota, fecha y persona que la ordenó. **Reconstruye `ejemplar`, `fotografia` y `solicitud`.** |
+| `0007_personal.sql` | Correos distintos por persona, índice único sobre el correo y vínculo con el identificador de Llave CDMX. |
+
+### Base nueva, desde cero
+
+```bash
+# 1. Crear la base y copiar el database_id que devuelve a wrangler.jsonc
+npx wrangler d1 create amar-es-adoptar
+
+# 2. Aplicar TODAS las migraciones, en orden, de una vez
+npx wrangler d1 migrations apply amar-es-adoptar --local
+npx wrangler d1 migrations apply amar-es-adoptar --remote
+
+# 3. Comprobar que quedó completa
+npx wrangler d1 execute amar-es-adoptar --local --file=mantenimiento/verificar-estructura.sql
+```
+
+La carpeta se declara en `wrangler.jsonc`, **dentro** de la entrada de la base, no al
+principio del archivo:
+
+```jsonc
+"d1_databases": [
+  {
+    "binding": "DB",
+    "database_name": "amar-es-adoptar",
+    "database_id": "…",
+    "migrations_dir": "migraciones"
+  }
+]
+```
+
+### Una migración nueva
+
+```bash
+# Crea el archivo con el número que sigue
+npx wrangler d1 migrations create amar-es-adoptar nombre-descriptivo
+
+# Se escribe el SQL, se prueba en local, y sólo entonces va a remoto
+npx wrangler d1 migrations apply amar-es-adoptar --local
+npx wrangler d1 migrations apply amar-es-adoptar --remote
+```
+
+**Antes de aplicar a la base remota, siempre un respaldo** (sección 7).
+
+Si la migración cambia la estructura, hay que actualizar los números esperados en
+`mantenimiento/verificar-estructura.sql`. Una comprobación desactualizada no sólo deja de
+servir: empieza a avisar de errores que no existen, y se le deja de hacer caso.
+
+### Comprobar si dos bases están iguales
+
+```bash
+npx wrangler d1 migrations list amar-es-adoptar --remote
+```
+
+Debe responder `✅ No migrations to apply!`. Eso dice qué migraciones están **registradas**,
+que no es lo mismo que qué hay realmente en la base. Para verificar la estructura misma:
+
+```bash
+npx wrangler d1 execute amar-es-adoptar --remote --file=mantenimiento/verificar-estructura.sql
+```
+
+### Advertencia: contra la base remota sólo funcionan las migraciones
+
+Al 17 de septiembre de 2026, de los cuatro comandos de Wrangler que tocan la base remota
+**sólo dos funcionan**, con la misma cuenta y el mismo token:
+
+| Comando | Contra la remota |
+|---|---|
+| `d1 migrations apply --remote` | Funciona |
+| `d1 migrations list --remote` | Funciona |
+| `d1 execute --remote --file=…` | `Authentication error [code: 10000]`. `--file` no manda una consulta: sube el archivo por el endpoint de importación, que exige más permisos. |
+| `d1 execute --remote --command "…"` | `[code: 7403]`. Es el endpoint `/query`, y dejó de aceptar este token: **antes sí funcionaba**. |
+
+**Consecuencia práctica, y conviene leerla como decisión y no como estorbo: la base remota
+sólo se toca por migración.** Cualquier cambio —de estructura o de datos— se escribe como
+archivo en `migraciones/` y se aplica con `migrations apply`. Es lo que se quería de todos
+modos: un cambio corrido a mano sólo existe en la máquina donde se corrió.
+
+Lo que sí se pierde es poder **consultar** la remota desde la terminal. Mientras `/query`
+esté cerrado, su contenido se comprueba por el sitio desplegado, y el estado del almacén de
+fotografías por la pantalla `/admin/almacen`, que funciona igual en local y en producción.
+
+Un error de autorización en uno de estos comandos **no significa que la sesión haya
+vencido**: antes de `wrangler login`, probar otro comando contra el mismo recurso.
+
+### Bases que existían antes de este registro
+
+Una base creada antes del 17 de septiembre de 2026 tiene migraciones aplicadas a mano y la
+tabla `d1_migrations` vacía. Aplicar así reintentaría todas, incluidas las que reconstruyen
+tablas. Hay que sembrar el registro primero:
+`mantenimiento/sembrar-registro-de-migraciones.sql`, **después** de comprobar una por una
+cuáles están realmente puestas. El archivo explica el procedimiento y el accidente que lo
+hizo necesario.
+
+## 6.1 Sentencias de mantenimiento
+
+`mantenimiento/` no son migraciones: son sentencias que se ejecutan a mano, en un momento
+concreto, y que no forman parte de la secuencia del esquema. Se aplican igual:
+
+```bash
+npx wrangler d1 execute amar-es-adoptar --local  --file=mantenimiento/<archivo>.sql
+```
+
+| Archivo | Cuándo |
+|---|---|
+| `verificar-estructura.sql` | Cuantas veces se quiera. Sólo lee. Después de aplicar migraciones y antes de cualquier entrega. |
+| `marcar-todo-como-prueba.sql` | Mientras no exista un solo dato real. Deja de usarse el día que entra el padrón. |
+| `retirar-datos-de-prueba.sql` | Una sola vez, con el padrón real ya cargado y verificado, y con respaldo previo. |
+| `sembrar-registro-de-migraciones.sql` | Sólo en una base anterior al 17 de septiembre de 2026, y sólo después de comprobar qué tiene de verdad. Ver sección 6. |
+
+Detalle y advertencias en `mantenimiento/LEEME.md`.
 
 ## 7. Respaldo y exportación
 
 ```bash
-npx wrangler d1 export amar-es-adoptar --remote --output=respaldo.sql
+npx wrangler d1 export amar-es-adoptar --remote --output respaldos/respaldo-AAAA-MM-DD.sql
 ```
 
 El volcado es SQL plano y no requiere herramienta propietaria para leerse.
+
+**Siempre antes de aplicar migraciones a la base remota.** La 0004 y la 0006 reconstruyen
+tablas: si algo falla a la mitad, el respaldo es la única vuelta atrás.
+
+La carpeta `respaldos/` **no se versiona**: los volcados crecen sin control y, en cuanto
+haya información real, serían datos personales de solicitantes dentro del repositorio.
 
 ## 8. Autenticación
 
@@ -128,7 +276,9 @@ no reescritura. Los valores que se requerirán de ADIP:
 
 - Identificador de cliente (`client_id`) y secreto
 - URL de autorización, de token y de información de usuario
-- URL de retorno (`callback`) registrada del lado de ADIP
+- **Dos** direcciones de retorno (`callback`) registradas del lado de ADIP, porque son dos
+  clientes distintos: `/admin/callback` para el personal y `/adoptar/callback` para la
+  ciudadanía. Nada garantiza que ADIP dé de alta un solo cliente.
 - Ambiente de pruebas
 - Qué campos de identidad entrega el token: el formulario supone nombre, apellidos, CURP,
   calle, número, código postal, alcaldía, colonia, teléfono y correo

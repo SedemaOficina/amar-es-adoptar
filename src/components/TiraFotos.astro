@@ -1,0 +1,182 @@
+---
+/* La tira de fotografías de un ejemplar, tal como se ve en su ficha.
+ *
+ * POR QUÉ ES UN COMPONENTE Y NO MARCADO SUELTO EN LA FICHA
+ * --------------------------------------------------------
+ * Este mismo pedazo de pantalla se pinta en dos momentos:
+ *   · cuando se carga la ficha, y
+ *   · cada vez que se sube, se quita o se reordena una fotografía, que la
+ *     ficha vuelve a pedir al servidor sin recargar la página.
+ *
+ * Al estar aquí, los dos momentos usan EXACTAMENTE el mismo marcado y los
+ * mismos estilos. Si estuviera escrito dos veces —una en la ficha y otra en
+ * el JavaScript— bastaría con tocar uno para que la tira cambiara de aspecto
+ * al primer clic.
+ *
+ * SIN JAVASCRIPT TAMBIÉN FUNCIONA
+ * --------------------------------
+ * Cada mando es un formulario de verdad que apunta a `/…/fotos`, la página
+ * completa. Si el navegador no ejecuta JavaScript, el botón manda ahí y todo
+ * sigue sirviendo, sólo que recargando. El JavaScript de la ficha lo que hace
+ * es interceptar ese envío y mandarlo al parcial.
+ */
+import { urlFoto } from '../servidor/fotografias.js';
+
+const { ejemplar, fotos, libres, aviso = null, error = null } = Astro.props;
+
+/* Destino de los formularios cuando no hay JavaScript: la página de
+   fotografías, que sabe responder con una pantalla completa. */
+const paginaFotos = `/admin/ejemplar/${ejemplar.slug}/fotos`;
+---
+
+{/* El id es el asidero del que tira el JavaScript de la ficha para
+    reemplazar este bloque entero. */}
+<div id="tira-fotos" class="tira-fotos" data-parcial={`/admin/ejemplar/${ejemplar.slug}/tira`}>
+
+  {aviso && <p class="tira-aviso" role="status">{aviso}</p>}
+  {error && <p class="tira-error" role="alert">{error}</p>}
+
+  <ul class="tira">
+    {fotos.map((f, i) => (
+      <li class="pieza">
+        <img src={urlFoto(f.clave_tarjeta)} alt={f.texto_alternativo ?? ''}
+             width="480" height="360" loading="lazy" />
+        <span class="orden">{i === 0 ? 'Portada' : `Fotografía ${i + 1}`}</span>
+
+        <div class="mandos">
+          <form method="POST" action={paginaFotos}>
+            <input type="hidden" name="accion" value="subir-orden" />
+            <input type="hidden" name="fotografia_id" value={f.id} />
+            <button type="submit" disabled={i === 0} aria-label="Subir en el orden">↑</button>
+          </form>
+
+          <form method="POST" action={paginaFotos}>
+            <input type="hidden" name="accion" value="bajar-orden" />
+            <input type="hidden" name="fotografia_id" value={f.id} />
+            <button type="submit" disabled={i === fotos.length - 1}
+                    aria-label="Bajar en el orden">↓</button>
+          </form>
+
+          {/* Ésta sí borra el archivo y no se deshace: lleva el rojo del
+              sistema y su icono, como todo lo definitivo.
+
+              Se apaga cuando es la única: ningún ejemplar puede quedarse sin
+              fotografía. El servidor lo rechaza de todos modos; apagar el
+              botón evita que alguien lo intente y reciba un error. */}
+          <form method="POST" action={paginaFotos} class="forma-quitar"
+                onsubmit="return confirm('¿Quitar esta fotografía? No se puede deshacer.')">
+            <input type="hidden" name="accion" value="eliminar" />
+            <input type="hidden" name="fotografia_id" value={f.id} />
+            <button type="submit" class="quitar" disabled={fotos.length === 1}
+                    title={fotos.length === 1
+                      ? 'Es la única fotografía. Sube antes la que la sustituye.'
+                      : undefined}>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+              </svg>
+              Quitar
+            </button>
+          </form>
+        </div>
+      </li>
+    ))}
+
+    {libres > 0 && (
+      <li class="hueco-celda">
+        <button type="button" class="hueco" id="abrir-archivo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true">
+            <rect x="3" y="4" width="14" height="12" rx="2" />
+            <path d="M3 13.5l3.4-3.4a2 2 0 0 1 2.8 0L13 14" />
+            <circle cx="12.6" cy="8.2" r="1.2" />
+            <path d="M18 15v6M15 18h6" />
+          </svg>
+          <span class="rotulo">Agregar</span>
+          <span class="cuantas">
+            {libres === 1 ? 'queda 1 lugar' : `quedan ${libres} lugares`}
+          </span>
+        </button>
+        {/* Sin JavaScript el botón de arriba no hace nada, así que debajo va
+            un enlace de verdad a la página de fotografías. Con JavaScript se
+            oculta, porque entonces todo pasa aquí mismo. */}
+        <noscript>
+          <a class="hueco-enlace" href={paginaFotos}>Agregar fotografía</a>
+        </noscript>
+      </li>
+    )}
+  </ul>
+
+  <p class="nota">
+    {fotos.length === 0
+      ? 'Sin fotografías. Mientras no tenga al menos una, el ejemplar no aparece en el catálogo público.'
+      : 'Se recortan a 4:3 con encuadre superior y se generan solos los cuatro tamaños. La primera es la que aparece en el catálogo.'}
+  </p>
+</div>
+
+<style>
+  .tira-aviso, .tira-error {
+    margin: 0 0 12px; padding: 10px 14px; font-size: 0.875rem; border-radius: 6px;
+  }
+  .tira-aviso { background: var(--exito-fondo); color: var(--exito);
+                border-left: 3px solid var(--exito); }
+  .tira-error { background: var(--alto-fondo); color: var(--alto);
+                border-left: 3px solid var(--alto); }
+
+  .tira {
+    list-style: none; padding: 0; margin: 0;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 12px; align-items: start;
+  }
+
+  .pieza {
+    position: relative; border: 1px solid var(--linea);
+    border-radius: 6px; overflow: hidden; background: var(--crema);
+  }
+  .pieza img {
+    width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+    object-position: top center; display: block;
+  }
+  .orden {
+    display: block; padding: 8px 10px 0;
+    font-size: 0.6875rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--dorado-texto);
+  }
+
+  .mandos { display: flex; gap: 6px; padding: 8px 10px 10px; }
+  .mandos form { margin: 0; }
+  .mandos button {
+    border: 1px solid var(--linea-campo); background: var(--blanco); color: var(--gris);
+    border-radius: 6px; padding: 7px 10px; font-family: var(--cuerpo);
+    font-size: 0.8125rem; cursor: pointer; min-height: 32px;
+  }
+  .mandos button:disabled { color: var(--gris-claro); opacity: 0.45; cursor: not-allowed; }
+  .forma-quitar { margin-left: auto; }
+  /* `.mandos .quitar` y no `.quitar` a secas: la regla de arriba es
+     `.mandos button`, que tiene más especificidad que una clase sola, así
+     que se comía el rojo y el botón salía gris como los de orden. Es el
+     mismo tipo de choque que ya nos pasó con `.portada h1`. */
+  .mandos .quitar {
+    display: inline-flex; align-items: center; gap: 5px;
+    color: var(--peligro); border-color: var(--peligro);
+  }
+  .mandos .quitar:hover:not(:disabled) { background: var(--peligro); color: var(--blanco); }
+  .mandos .quitar:disabled { color: var(--gris-claro); border-color: var(--linea-campo); }
+
+  .hueco-celda { display: grid; gap: 6px; }
+  .hueco {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 4px; aspect-ratio: 4 / 3; width: 100%;
+    border: 2px dashed var(--dorado); border-radius: 6px;
+    background: var(--crema); color: var(--principal);
+    font-family: var(--cuerpo); cursor: pointer; text-align: center; padding: 8px;
+  }
+  .hueco:hover { border-color: var(--principal); background: var(--blanco); }
+  .hueco svg { width: 28px; height: 28px; }
+  .hueco .rotulo { font-weight: 500; font-size: 0.9375rem; }
+  .hueco .cuantas { font-size: 0.75rem; color: var(--gris-claro); }
+  .hueco-enlace { font-size: 0.8125rem; text-align: center; display: block; padding: 6px; }
+
+  .nota { margin: 12px 0 0; font-size: 0.8125rem; color: var(--gris-claro); }
+</style>

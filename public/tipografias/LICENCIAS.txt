@@ -1,0 +1,32 @@
+TIPOGRAFÍAS DEL SITIO — LICENCIAS
+=================================
+
+Los archivos .woff2 de esta carpeta son subconjuntos de dos familias
+tipográficas libres. Se alojan aquí, y no se cargan de un servicio externo,
+por tres razones: no entregarle a un tercero la dirección IP de cada persona
+que visita un portal de gobierno, no depender de que ese servicio esté
+disponible, y que el sitio conserve su tipografía si se despliega en una red
+restringida.
+
+CABIN
+  Copyright 2018 The Cabin Project Authors
+  https://github.com/impallari/Cabin
+  SIL Open Font License, Version 1.1
+
+ROBOTO
+  Copyright 2011 The Roboto Project Authors
+  https://github.com/googlefonts/roboto-classic
+  SIL Open Font License, Version 1.1
+
+La SIL Open Font License permite usar, estudiar, modificar y redistribuir las
+tipografías, incluso incrustadas en un producto, siempre que no se vendan por
+separado y que los archivos derivados no usen los Nombres Reservados. El uso
+en este sitio cumple ambas condiciones.
+
+Texto completo de la licencia: https://openfontlicense.org
+
+ORIGEN DE LOS ARCHIVOS
+  Paquetes @fontsource/cabin 5.3.0 y @fontsource/roboto 5.3.0, que publican
+  los mismos subconjuntos que sirve Google Fonts. Se tomaron únicamente los
+  pesos que el sitio usa —Cabin 500 y 700, Roboto 400 y 500— en los
+  subconjuntos latin y latin-ext, y sólo en formato woff2.

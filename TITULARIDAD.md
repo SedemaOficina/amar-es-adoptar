@@ -13,7 +13,12 @@ Gobierno de la Ciudad de México, no transfiere ni limita esa titularidad.
 | Elemento | Origen | Condición |
 |---|---|---|
 | Astro | astro.build | Licencia MIT |
-| Tipografías Cabin y Roboto | Google Fonts | SIL Open Font License 1.1 |
+| Tipografías Cabin y Roboto | Archivos alojados en `public/tipografias/` | SIL Open Font License 1.1 |
+
+Las tipografías **no se cargan de ningún servicio externo**: los archivos viajan con el
+proyecto. La licencia de cada familia, y el origen exacto de los archivos, están en
+`public/tipografias/LICENCIAS.txt`. La SIL Open Font License permite redistribuirlas
+incrustadas en un producto; no se venden por separado ni se renombraron.
 
 No se incorporan fotografías, ilustraciones ni textos de terceros. Las imágenes de muestra
 del catálogo fueron generadas para este proyecto y están marcadas como tales.

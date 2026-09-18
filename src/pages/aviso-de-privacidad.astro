@@ -1,0 +1,78 @@
+---
+/* Aviso de privacidad integral.
+ *
+ * DELIBERADAMENTE VACÍO DE CONTENIDO JURÍDICO.
+ *
+ * El aviso de privacidad no lo redacta quien programa: lo emite la Secretaría
+ * a través de su Unidad de Transparencia, conforme a la Ley de Protección de
+ * Datos Personales en Posesión de Sujetos Obligados de la Ciudad de México.
+ * Inventar aquí finalidades, fundamentos o plazos de conservación sería
+ * fabricar un documento con efectos jurídicos.
+ *
+ * Esta página existe para que el enlace no quede roto y para dejar asentado
+ * qué falta. Cuando la Unidad de Transparencia entregue el texto, se sustituye
+ * el contenido de este archivo y nada más.
+ *
+ * Riesgo R-05 de la bitácora.
+ */
+import Base from '../layouts/Base.astro';
+---
+<Base titulo="Aviso de privacidad">
+  <div class="contenedor pagina">
+    <p class="antetitulo">Protección de datos personales</p>
+    <h1>Aviso de privacidad</h1>
+
+    <div class="pendiente">
+      <p><strong>Este aviso está en elaboración.</strong></p>
+      <p>
+        El formulario de solicitud de adopción recaba datos personales. El aviso de
+        privacidad integral que corresponde a ese tratamiento lo emite la Secretaría del
+        Medio Ambiente por conducto de su Unidad de Transparencia, conforme a la Ley de
+        Protección de Datos Personales en Posesión de Sujetos Obligados de la Ciudad de
+        México. En cuanto esté emitido se publica aquí.
+      </p>
+      <p>
+        Mientras tanto, el sitio opera con registros ficticios y no se recibe información
+        de personas reales.
+      </p>
+    </div>
+
+    <div class="que-falta">
+      <h2>Lo que debe contener</h2>
+      <ul>
+        <li>Denominación del responsable del tratamiento.</li>
+        <li>Datos personales que se recaban y su origen.</li>
+        <li>Finalidades del tratamiento, distinguiendo las que requieren consentimiento.</li>
+        <li>Fundamento legal que faculta a la Secretaría para tratarlos.</li>
+        <li>Transferencias que en su caso se realicen y a quién.</li>
+        <li>Mecanismos para ejercer los derechos de acceso, rectificación, cancelación y oposición.</li>
+        <li>Domicilio de la Unidad de Transparencia.</li>
+        <li>Plazo de conservación y medidas de seguridad.</li>
+        <li>Medio para comunicar cambios al propio aviso.</li>
+      </ul>
+    </div>
+
+    <p class="acciones"><a class="boton boton-linea" href="/">Volver al inicio</a></p>
+  </div>
+</Base>
+
+<style>
+  .pagina { padding-block: 48px 72px; max-width: 44rem; }
+  .antetitulo {
+    font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--dorado-texto); margin: 0 0 12px;
+  }
+  h1 { color: var(--principal); font-size: 1.75rem; margin: 0 0 24px; }
+  h2 { font-size: 1.0625rem; color: var(--texto); margin: 0 0 10px; }
+
+  .pendiente {
+    border-left: 3px solid var(--dorado); background: var(--crema);
+    padding: 16px 18px; color: var(--gris); margin-bottom: 28px;
+  }
+  .pendiente p { margin: 0 0 10px; }
+  .pendiente p:last-child { margin-bottom: 0; }
+
+  .que-falta { color: var(--gris); margin-bottom: 28px; }
+  .que-falta ul { margin: 0; padding-left: 20px; }
+  .que-falta li { margin-bottom: 6px; }
+</style>

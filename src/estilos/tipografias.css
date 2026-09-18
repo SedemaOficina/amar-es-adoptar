@@ -1,0 +1,132 @@
+/* Tipografías del sitio, alojadas aquí mismo.
+ *
+ * POR QUÉ NO SE CARGAN DE GOOGLE FONTS (D-05)
+ *
+ * Hasta el 17 de septiembre de 2026 las dos familias se pedían a
+ * `fonts.googleapis.com`. Tres razones para dejar de hacerlo, en orden de peso:
+ *
+ *   1. PRIVACIDAD. Cada visita a un portal del Gobierno de la Ciudad le
+ *      entregaba la dirección IP de la persona a un tercero, sin que nadie lo
+ *      hubiera consentido. El trámite de adopción recaba datos personales y su
+ *      aviso de privacidad está en elaboración (S-03): no conviene sostener a
+ *      la vez que se cuida el dato y que la portada lo comparte sola.
+ *   2. ENTREGA. La plataforma se entrega a ADIP, que podría alojarla en una red
+ *      restringida. Allá el sitio perdería su tipografía y nadie entendería por
+ *      qué. La sección 4 del encargo pide cero dependencias externas que se
+ *      rompan al cambiar de manos; ésta era una.
+ *   3. VELOCIDAD. La hoja de estilos de Google bloquea el primer pintado, y
+ *      antes de descargarla hay que resolver un dominio y abrir una conexión
+ *      nueva. Ahora los archivos salen del mismo servidor que la página.
+ *
+ * QUÉ SE TRAJO Y QUÉ NO
+ *
+ * Sólo los pesos que el sitio usa —Cabin 500 y 700 para títulos, Roboto 400 y
+ * 500 para el cuerpo— en formato woff2, que entienden todos los navegadores en
+ * uso. No se trajeron las cursivas ni los demás pesos: pesarían sin que nada
+ * los pidiera.
+ *
+ * LOS DOS SUBCONJUNTOS, Y POR QUÉ IMPORTA `unicode-range`
+ *
+ * Cada peso viene partido en dos archivos: `latin`, que cubre el español
+ * completo, y `latin-ext`, con los caracteres de otras lenguas europeas.
+ * `unicode-range` le dice al navegador qué trae cada uno, así que **sólo
+ * descarga el segundo si la página llega a mostrar un carácter que lo
+ * necesite**. En la práctica una visita normal baja 88 kB y nunca ve los otros
+ * 56. Sin esta declaración se descargarían siempre los dos.
+ *
+ * `font-display: swap` pinta el texto de inmediato con la tipografía del
+ * sistema y lo sustituye al llegar la definitiva. Se prefiere a que el texto
+ * quede invisible mientras carga: en una conexión lenta, invisible es
+ * indistinguible de roto.
+ *
+ * Las licencias —las dos son SIL Open Font License— están en
+ * `public/tipografias/LICENCIAS.txt`, con el origen exacto de los archivos.
+ * Va ahí y no aquí porque tiene que viajar con los archivos el día de la
+ * entrega.
+ */
+
+/* ---------- Cabin: títulos y encabezados ---------- */
+
+@font-face {
+  font-family: 'Cabin';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/tipografias/cabin-latin-ext-500-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                 U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF,
+                 U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Cabin';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/tipografias/cabin-latin-500-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Cabin';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/tipografias/cabin-latin-ext-700-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                 U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF,
+                 U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Cabin';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/tipografias/cabin-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---------- Roboto: cuerpo de texto ---------- */
+
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/tipografias/roboto-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                 U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF,
+                 U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/tipografias/roboto-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/tipografias/roboto-latin-ext-500-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                 U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF,
+                 U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/tipografias/roboto-latin-500-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

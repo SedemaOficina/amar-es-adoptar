@@ -1,0 +1,185 @@
+---
+/* Personal con acceso al sistema — listado.
+ *
+ * Sólo la ve la administración global; el filtro está en `middleware.js`, que
+ * responde «no existe» a cualquier otro perfil.
+ *
+ * La columna que más importa no es el perfil sino el ÚLTIMO ACCESO. El correo
+ * con el que la gente entra puede ser personal, y un correo personal no se da
+ * de baja cuando alguien deja la Secretaría: si nadie revisa esta lista, un
+ * acceso puede quedarse vivo años. La pantalla está hecha para que eso se vea.
+ */
+export const prerender = false;
+
+import Administracion from '../../layouts/Administracion.astro';
+import { listarPersonal } from '../../servidor/personal-admin.js';
+
+const persona = Astro.locals.persona;
+const gente = await listarPersonal();
+
+const activos = gente.filter((p) => p.activo === 1);
+const retirados = gente.filter((p) => p.activo === 0);
+const pendientes = activos.filter((p) => p.pendiente).length;
+
+const fecha = (iso) =>
+  iso ? new Date(iso).toLocaleDateString('es-MX', { dateStyle: 'medium' }) : null;
+
+/* Cuántos días lleva sin entrar. Es lo que convierte una fecha en una señal:
+   «12 de marzo» no dice nada; «hace 187 días» sí. */
+function diasSin(iso) {
+  if (!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+}
+---
+<Administracion titulo="Personal" persona={persona}>
+  <div class="encabezado">
+    <div>
+      <h1>Personal con acceso</h1>
+      <p class="intro">
+        Quién puede entrar a la administración y con qué alcance. Retirar el acceso
+        desactiva a la persona; nunca la borra, porque su nombre sigue apareciendo en el
+        historial de lo que hizo.
+      </p>
+    </div>
+    <a class="boton boton-solido" href="/admin/personal/nuevo">Dar de alta</a>
+  </div>
+
+  {pendientes > 0 && (
+    <p class="aviso">
+      {pendientes === 1
+        ? 'Una persona está autorizada y todavía no ha entrado nunca.'
+        : `${pendientes} personas están autorizadas y todavía no han entrado nunca.`}
+      {' '}Quedarán reconocidas en cuanto entren con el correo registrado.
+    </p>
+  )}
+
+  <table class="tabla">
+    <caption class="solo-encabezado">Personal activo</caption>
+    <thead>
+      <tr>
+        <th scope="col">Persona</th>
+        <th scope="col">Alcance</th>
+        <th scope="col">Último acceso</th>
+        <th scope="col"><span class="oculto">Acciones</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {activos.map((p) => {
+        const dias = diasSin(p.ultimo_acceso);
+        return (
+          <tr>
+            <td>
+              <p class="nombre">{p.nombre}</p>
+              <p class="correo">{p.correo}</p>
+            </td>
+            <td>
+              {p.rol === 'ADMIN_GLOBAL'
+                ? <span class="pastilla admin">Administración global</span>
+                : <span class="pastilla">Capturista · {p.centro_etiqueta}</span>}
+            </td>
+            <td>
+              {p.pendiente
+                ? <span class="pastilla espera">No ha entrado nunca</span>
+                : p.ultimo_acceso
+                  ? (
+                    <>
+                      <span class={dias >= 120 ? 'lejano' : ''}>{fecha(p.ultimo_acceso)}</span>
+                      <span class="cuanto">
+                        {dias === 0 ? 'hoy' : dias === 1 ? 'ayer' : `hace ${dias} días`}
+                      </span>
+                    </>
+                  )
+                  : <span class="cuanto">sin registro</span>}
+            </td>
+            <td class="derecha">
+              <a href={`/admin/personal/${p.id}`}>Editar</a>
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+
+  {retirados.length > 0 && (
+    <>
+      <h2 class="titulo-retirados">Sin acceso</h2>
+      <p class="nota">
+        Conservan su historial. Se les puede devolver el acceso en cualquier momento.
+      </p>
+      <table class="tabla">
+        <tbody>
+          {retirados.map((p) => (
+            <tr class="apagado">
+              <td>
+                <p class="nombre">{p.nombre}</p>
+                <p class="correo">{p.correo}</p>
+              </td>
+              <td>
+                {p.rol === 'ADMIN_GLOBAL' ? 'Administración global' : `Capturista · ${p.centro_etiqueta}`}
+              </td>
+              <td>{fecha(p.ultimo_acceso) ?? 'nunca entró'}</td>
+              <td class="derecha"><a href={`/admin/personal/${p.id}`}>Editar</a></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  )}
+</Administracion>
+
+<style>
+  .encabezado {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+  }
+  h1 { color: var(--principal); font-size: 1.5rem; margin: 0 0 6px; }
+  .intro { margin: 0; color: var(--gris); font-size: 0.875rem; max-width: 48rem; }
+
+  .aviso {
+    background: var(--atencion-fondo); border-left: 3px solid var(--atencion);
+    padding: 12px 14px; margin: 0 0 18px; color: var(--gris); font-size: 0.875rem;
+  }
+
+  .tabla { width: 100%; border-collapse: collapse; margin-bottom: 26px; }
+  .tabla th {
+    text-align: left; font-size: 0.6875rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--gris-claro); font-weight: 500;
+    padding: 0 12px 8px; border-bottom: 1px solid var(--linea);
+  }
+  .tabla td {
+    padding: 12px; border-bottom: 1px solid var(--linea); vertical-align: top;
+    font-size: 0.9375rem;
+  }
+  .tabla tr:nth-child(even) td { background: #FBFAF8; }
+  .derecha { text-align: right; white-space: nowrap; }
+
+  .nombre { margin: 0; font-weight: 500; color: var(--texto); }
+  .correo { margin: 2px 0 0; font-size: 0.8125rem; color: var(--gris-claro);
+            font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
+
+  .pastilla {
+    display: inline-block; font-size: 0.75rem; padding: 3px 10px;
+    border-radius: 999px; border: 1px solid var(--linea-campo); color: var(--gris);
+  }
+  .pastilla.admin { border-color: var(--principal); color: var(--principal); }
+  .pastilla.espera { border-color: var(--atencion); color: var(--atencion); }
+
+  /* Una fecha sola no alarma; «hace 187 días» sí. */
+  .cuanto { display: block; font-size: 0.75rem; color: var(--gris-claro); margin-top: 2px; }
+  .lejano { color: var(--atencion); font-weight: 500; }
+
+  /* Mismo rótulo que el resto del sistema, con su filete y su aire: son dos
+     listas distintas, no una lista con un renglón raro en medio. */
+  .titulo-retirados {
+    font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--gris);
+    margin: 44px 0 4px; padding-top: 24px; border-top: 1px solid var(--linea);
+  }
+  .nota { margin: 0 0 12px; font-size: 0.8125rem; color: var(--gris-claro); }
+  .apagado td { color: var(--inactivo); }
+
+  .solo-encabezado, .oculto {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
+</style>

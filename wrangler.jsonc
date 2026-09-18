@@ -19,6 +19,30 @@
   // esperan las interfaces de Node.
   "compatibility_flags": ["nodejs_compat"],
 
+  // --- Direcciones en las que el sitio queda expuesto -----------------------
+  //
+  // Cloudflare publica un Worker en direcciones propias salvo que se le diga
+  // que no. Las dos opciones siguientes son distintas y conviene no
+  // confundirlas:
+  //
+  // `preview_urls`: cada despliegue genera ADEMÁS su propia dirección pública
+  // y permanente. Sirven para revisar un cambio antes de publicarlo, pero se
+  // acumulan una por versión, nadie las administra y quedan abiertas. En un
+  // portal de gobierno que va a recabar datos personales, eso es un frente
+  // que no se puede vigilar. Se apagan.
+  "preview_urls": false,
+
+  // `workers_dev`: la dirección <nombre>.<subdominio>.workers.dev. Hoy es la
+  // ÚNICA por la que se llega al sitio, porque el subdominio institucional
+  // bajo cdmx.gob.mx todavía no existe (trámite S-02 con ADIP). Apagarla
+  // ahora dejaría el sitio sin ninguna dirección.
+  //
+  // EL DÍA QUE EL SUBDOMINIO ESTÉ ARRIBA: descomentar la línea de abajo y
+  // volver a desplegar. El sitio dejará de responder en workers.dev y sólo
+  // vivirá en el dominio institucional, que es lo correcto.
+  // "workers_dev": false,
+
+
   // Base de datos D1 (SQLite administrado por Cloudflare).
   // El enlace se llama DB: así se consulta como env.DB en el código, sin
   // repetir el nombre del proyecto en cada consulta.
@@ -28,21 +52,58 @@
     {
       "binding": "DB",
       "database_name": "amar-es-adoptar",
-      "database_id": "d5ca9fbd-bcbb-4f4a-8517-6c647957974b"
+      "database_id": "d5ca9fbd-bcbb-4f4a-8517-6c647957974b",
+
+      // Carpeta de migraciones. Va aquí dentro, no al principio del archivo:
+      // pertenece a esta base, porque un proyecto puede tener varias y cada
+      // una las suyas.
+      //
+      // Con esto, `wrangler d1 migrations apply` sabe dónde buscarlas y lleva
+      // la cuenta de cuáles ya se aplicaron en la tabla `d1_migrations`, que
+      // él mismo administra. Es lo que evita volver a correr una migración ya
+      // aplicada: la 0006 destruye y reconstruye tres tablas.
+      "migrations_dir": "migraciones"
     }
   ],
 
-  // Espacio KV que el adaptador de Astro declara para sus sesiones.
+  // Espacio KV de las sesiones de Astro.
   //
-  // El proyecto NO lo usa: la sesión del personal viaja en una cookie firmada
-  // (ver src/servidor/sesion.js). Se declara aquí con su identificador ya
-  // creado para que el despliegue automático no tenga que aprovisionarlo:
-  // el token de construcción no tiene permiso para crear recursos, y ése era
-  // el motivo de que fallara la publicación desde GitHub.
+  // IMPRESCINDIBLE: aquí viven los datos personales de quien llena una
+  // solicitud de adopción —nombre, CURP, domicilio y contacto— mientras dura
+  // el trámite. La cookie sólo lleva el identificador de la sesión; el
+  // contenido se queda del lado del servidor (ver src/servidor/solicitante.js).
+  // Sin este enlace, el formulario de adopción deja de funcionar.
+  //
+  // La sesión del PERSONAL es otra cosa y no usa este espacio: viaja en una
+  // cookie firmada y se comprueba contra la tabla `usuario` en cada petición
+  // (ver src/servidor/sesion.js), de modo que dar de baja a alguien surte
+  // efecto de inmediato.
+  //
+  // Se declara con su identificador ya creado para que el despliegue
+  // automático no tenga que aprovisionarlo: el token de construcción no tiene
+  // permiso para crear recursos, y ése era el motivo de que fallara la
+  // publicación desde GitHub.
   "kv_namespaces": [
     {
       "binding": "SESSION",
       "id": "78f2ce09f93043b29214e35985550dd8"
+    }
+  ],
+
+  // Almacén de fotografías (R2, compatible con el protocolo S3).
+  //
+  // En desarrollo el servidor lo simula en .wrangler/, así que se puede
+  // construir y probar sin que el almacén exista en Cloudflare. Para publicar
+  // sí hace falta crearlo:
+  //     npx wrangler r2 bucket create amar-es-adoptar-fotos
+  //
+  // Se eligió R2 y no el servicio de imágenes de Cloudflare porque R2 habla el
+  // protocolo S3: si el sistema se aloja en otra infraestructura, se cambia el
+  // almacén sin reescribir nada.
+  "r2_buckets": [
+    {
+      "binding": "FOTOS",
+      "bucket_name": "amar-es-adoptar-fotos"
     }
   ],
 

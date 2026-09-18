@@ -1,0 +1,233 @@
+---
+/* Fotografías de un ejemplar — PANTALLA DE RESPALDO.
+ *
+ * Desde el 17 de septiembre de 2026 las fotografías se administran desde la
+ * propia ficha del ejemplar, sin recargar. Esta pantalla se conserva por una
+ * razón concreta: es a donde apuntan los formularios de cada fotografía, y
+ * es lo que las hace funcionar cuando el navegador no ejecuta JavaScript.
+ * Con JavaScript, la ficha intercepta ese envío y nadie llega aquí.
+ *
+ * No se borró porque sería cambiar «funciona siempre, mejor con JavaScript»
+ * por «funciona sólo con JavaScript», que en un portal de gobierno no es un
+ * cambio menor.
+ *
+ * La tira es el mismo componente que usa la ficha. Los cuatro tamaños los
+ * prepara el navegador antes de enviar; el servidor los comprueba y los
+ * guarda. */
+export const prerender = false;
+
+import Administracion from '../../../../layouts/Administracion.astro';
+import TiraFotos from '../../../../components/TiraFotos.astro';
+import { obtenerParaEditar } from '../../../../servidor/ejemplar-escritura.js';
+import { aplicarAccion, listar, MAXIMO_POR_EJEMPLAR }
+  from '../../../../servidor/fotografias.js';
+
+const persona = Astro.locals.persona;
+const { slug } = Astro.params;
+
+const ejemplar = await obtenerParaEditar(persona, slug);
+if (!ejemplar) return new Response(null, { status: 404 });
+
+/* La acción la resuelve la misma función que usa la ruta parcial de la
+   ficha: una sola definición de qué hace cada botón. */
+let aviso = null;
+let error = null;
+
+if (Astro.request.method === 'POST') {
+  const resultado = await aplicarAccion(ejemplar, await Astro.request.formData());
+  aviso = resultado.aviso ?? null;
+  error = resultado.error ?? null;
+}
+
+const fotos = await listar(ejemplar.id);
+const libres = Math.max(0, MAXIMO_POR_EJEMPLAR - fotos.length);
+const lleno = libres === 0;
+---
+<Administracion titulo={`Fotografías · ${ejemplar.nombre}`} persona={persona} ancho="lectura">
+  <p class="migaja">
+    <a href={`/admin/ejemplar/${ejemplar.slug}`}>‹ {ejemplar.nombre}</a>
+  </p>
+
+  <h1>Fotografías</h1>
+  <p class="intro">
+    Cada ejemplar admite hasta {MAXIMO_POR_EJEMPLAR} fotografías. La primera es la portada que aparece en
+    el catálogo. Todas se recortan a proporción 4:3 con encuadre superior, para que no se
+    corte la cabeza en fotografías verticales.
+  </p>
+
+  <TiraFotos ejemplar={ejemplar} fotos={fotos} libres={libres}
+             aviso={aviso} error={error} />
+
+  {lleno ? (
+    <p class="lleno">
+      Ya tiene las {MAXIMO_POR_EJEMPLAR} fotografías admitidas. Para cambiar alguna,
+      quítala primero.
+    </p>
+  ) : (
+    <section class="subir">
+      <h2>Agregar fotografía</h2>
+
+      <noscript>
+        <p class="error-general">
+          Para subir fotografías hace falta que el navegador ejecute JavaScript: el
+          recorte y los tamaños se preparan aquí antes de enviarlos.
+        </p>
+      </noscript>
+
+      <form method="POST" enctype="multipart/form-data" id="formulario">
+        <input type="hidden" name="accion" value="subir" />
+
+        <div class="campo">
+          <label for="archivo">Archivo</label>
+          <input type="file" id="archivo" accept="image/jpeg,image/png,image/webp" />
+          <p class="ayuda">JPEG, PNG o WEBP. Se convierte y se reduce automáticamente.</p>
+        </div>
+
+        <div class="previsualizacion" id="previa" hidden>
+          <p class="rotulo">Así se va a guardar</p>
+          <img id="muestra" alt="Vista previa del recorte" width="480" height="360" />
+          <p class="ayuda" id="detalle"></p>
+          <div class="mandos-previa">
+            <button type="button" id="cambiar">Elegir otra</button>
+            <button type="button" id="descartar">Quitar</button>
+          </div>
+        </div>
+
+        <button type="submit" class="boton boton-solido" id="enviar" disabled>
+          Guardar fotografía
+        </button>
+      </form>
+    </section>
+  )}
+</Administracion>
+
+<script>
+  /* Esta pantalla ya sólo arma la interfaz: el recorte y el envío viven en
+     `cliente/fotografias.js`, que comparte con la ficha. Antes estaban aquí,
+     y cuando la ficha quiso hacer lo mismo habrían quedado dos copias del
+     mismo recorte, que es como se termina con dos encuadres distintos. */
+  import { prepararTamanos, enviarAccion } from '../../../../cliente/fotografias.js';
+
+  const entrada = document.getElementById('archivo');
+  if (entrada) {
+    const formulario = document.getElementById('formulario');
+    const previa = document.getElementById('previa');
+    const muestra = document.getElementById('muestra');
+    const detalle = document.getElementById('detalle');
+    const enviar = document.getElementById('enviar');
+    const cambiar = document.getElementById('cambiar');
+    const descartar = document.getElementById('descartar');
+
+    let preparados = null;
+    let urlPrevia = null;   // se libera al cambiar o quitar, para no dejar memoria colgada
+
+    /* Deja el formulario como si no se hubiera elegido nada. */
+    function descartarSeleccion() {
+      entrada.value = '';
+      preparados = null;
+      enviar.disabled = true;
+      previa.hidden = true;
+      detalle.textContent = '';
+      muestra.removeAttribute('src');
+      if (urlPrevia) { URL.revokeObjectURL(urlPrevia); urlPrevia = null; }
+    }
+
+    /* El recuadro punteado «Agregar» lo pinta el componente, que no sabe
+       nada de esta pantalla: aquí se le dice qué hacer al pulsarlo. */
+    document.getElementById('abrir-archivo')
+      ?.addEventListener('click', () => entrada.click());
+
+    cambiar?.addEventListener('click', () => entrada.click());
+    descartar?.addEventListener('click', descartarSeleccion);
+
+    entrada.addEventListener('change', async () => {
+      const archivo = entrada.files?.[0];
+      enviar.disabled = true;
+      preparados = null;
+      previa.hidden = true;
+      if (urlPrevia) { URL.revokeObjectURL(urlPrevia); urlPrevia = null; }
+      if (!archivo) return;
+
+      try {
+        const { blobs, ancho, alto, bytes } = await prepararTamanos(archivo);
+        preparados = blobs;
+
+        urlPrevia = URL.createObjectURL(blobs.tarjeta);
+        muestra.src = urlPrevia;
+        detalle.textContent =
+          `Original ${ancho}×${alto}. Se guardan cuatro tamaños, ` +
+          `${Math.round(bytes / 1024)} kB en total.`;
+        previa.hidden = false;
+        enviar.disabled = false;
+      } catch {
+        // Sin vista previa que mostrar: solo el aviso y los botones para reintentar.
+        muestra.removeAttribute('src');
+        detalle.textContent = 'No se pudo leer ese archivo como imagen. Elige otra.';
+        previa.hidden = false;
+      }
+    });
+
+    formulario.addEventListener('submit', async (evento) => {
+      if (!preparados) return;
+      evento.preventDefault();
+      enviar.disabled = true;
+      enviar.textContent = 'Guardando…';
+
+      /* No se manda `texto_alternativo`: el servidor lo arma solo con el
+         nombre del ejemplar. Ver `guardar()` en servidor/fotografias.js. */
+      /* Se manda a esta misma página, que contesta con la pantalla completa.
+         Aquí sí se recarga después: no hay nada escrito que perder. */
+      const respuesta = await enviarAccion(location.pathname, { accion: 'subir' }, preparados);
+
+      if (respuesta.ok) {
+        /* En esta pantalla sí se recarga: no hay nada escrito que perder y
+           el listado de arriba tiene que reflejar la foto nueva. La ficha,
+           en cambio, redibuja sin recargar. */
+        location.reload();
+        return;
+      }
+
+      enviar.disabled = false;
+      enviar.textContent = 'Guardar fotografía';
+      detalle.textContent = respuesta.error ?? 'No se pudo enviar.';
+    });
+  }
+</script>
+
+<style>
+  h1 { color: var(--principal); font-size: 1.5rem; margin: 0 0 6px; }
+  .intro { color: var(--gris); margin: 0 0 24px; max-width: var(--ancho-lectura); }
+
+
+  /* La tira y sus mandos los estila `components/TiraFotos.astro`. */
+
+  .subir { border-top: 1px solid var(--linea); margin-top: 44px; padding-top: 24px;
+           max-width: var(--ancho-lectura); }
+  .subir h2 { font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.1em;
+              text-transform: uppercase; color: var(--gris); margin: 0 0 16px; }
+  .campo { margin-bottom: 16px; }
+  .campo label { display: block; font-size: 0.8125rem; font-weight: 500; margin-bottom: 5px; }
+  .campo input[type="text"] {
+    width: 100%; padding: 10px 12px; font-family: var(--cuerpo); font-size: 0.9375rem;
+    border: 1px solid var(--linea-campo); border-radius: 6px;
+  }
+  .ayuda { font-size: 0.8125rem; color: var(--gris-claro); margin: 5px 0 0; }
+
+  .previsualizacion { margin: 18px 0; padding: 14px; background: var(--crema); border-radius: 10px; }
+  .rotulo { font-size: 0.6875rem; letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--dorado-texto); margin: 0 0 8px; }
+  .previsualizacion img { width: 100%; max-width: 320px; aspect-ratio: 4 / 3;
+                          object-fit: cover; object-position: top center; border-radius: 6px; }
+
+  .mandos-previa { display: flex; gap: 8px; margin-top: 12px; }
+  .mandos-previa button {
+    border: 1px solid var(--linea-campo); background: var(--blanco); color: var(--gris);
+    border-radius: 6px; padding: 6px 12px; font-family: var(--cuerpo);
+    font-size: 0.8125rem; cursor: pointer;
+  }
+  .mandos-previa button:hover { border-color: var(--gris); }
+
+
+  .lleno { color: var(--gris); border-left: 3px solid var(--dorado);
+           padding-left: 14px; max-width: var(--ancho-lectura); }
+</style>

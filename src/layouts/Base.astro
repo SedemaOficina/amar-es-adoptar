@@ -2,8 +2,35 @@
 /* Plantilla común a todas las páginas: encabezado institucional, banda de
    navegación, aviso de desarrollo y pie. Cada página sólo aporta su
    contenido; el marco vive aquí y se corrige en un solo lugar. */
+/* Las tipografías van antes que los estilos: primero se declara con qué se
+   escribe, después cómo se ve. Astro junta las dos hojas en una sola. */
+import '../estilos/tipografias.css';
 import '../estilos/global.css';
-import { hayDatosFicticios } from '../datos/ejemplares.js';
+import { hayRegistrosFicticios } from '../servidor/ejemplares-publico.js';
+
+/* El aviso se enciende mientras quede un solo registro de prueba en la base, y
+   se apaga solo cuando se retiran. Antes dependía de una bandera escrita en el
+   archivo de datos ficticios; ahora lo dice la base, que es la verdad.
+
+   El try/catch existe porque esta plantilla la usan también páginas que se
+   generan al construir el sitio —el aviso de privacidad, el 404—, y ahí no hay
+   base de datos. En esas páginas simplemente no se muestra el aviso. */
+let hayDatosFicticios = false;
+try {
+  hayDatosFicticios = await hayRegistrosFicticios();
+} catch {
+  hayDatosFicticios = false;
+}
+
+const SITIO = 'Amar es Adoptar';
+
+/* En qué parte del sitio estamos, para que la navegación lo señale (B-6).
+   Sólo se marca el catálogo. Los otros tres enlaces llevan a secciones de la
+   portada, no a páginas distintas: señalar uno de ellos como «la página en la
+   que estás» sería arbitrario, porque los tres llevan al mismo sitio.
+   La ficha de un ejemplar cuenta como estar en el catálogo: de ahí se llega. */
+const ruta = Astro.url.pathname;
+const enCatalogo = ruta.startsWith('/seres-sintientes');
 
 const { titulo, descripcion = 'Catálogo de seres sintientes en adopción de la Secretaría del Medio Ambiente de la Ciudad de México.' } = Astro.props;
 ---
@@ -12,18 +39,15 @@ const { titulo, descripcion = 'Catálogo de seres sintientes en adopción de la 
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{titulo} · Amar es Adoptar</title>
+    {/* La portada pasa como título el nombre del sitio, y el sufijo lo
+        repetía: «Amar es Adoptar · Amar es Adoptar» en la pestaña, en el
+        historial y en el buscador. */}
+    <title>{titulo === SITIO ? SITIO : `${titulo} · ${SITIO}`}</title>
     <meta name="description" content={descripcion} />
-    <link rel="icon" href="/imagenes/sin-foto.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Cabin:wght@500;700&family=Roboto:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
+    <link rel="icon" href="/imagenes/marca/isotipo.svg" type="image/svg+xml" />
   </head>
   <body>
-    <a href="#contenido" class="solo-lectores">Ir al contenido principal</a>
+    <a href="#contenido" class="salto-contenido">Ir al contenido principal</a>
 
     {hayDatosFicticios && (
       <p class="aviso-desarrollo">
@@ -41,15 +65,23 @@ const { titulo, descripcion = 'Catálogo de seres sintientes en adopción de la 
               alt="Gobierno de la Ciudad de México · Secretaría del Medio Ambiente"
             />
           </a>
+
+          {/* El programa acompaña a la institución, no la sustituye. En
+              teléfono queda sólo el isotipo: tres logotipos en una barra de
+              360 px de ancho no caben ni se leen. */}
+          <img class="marca-programa" src="/imagenes/marca/amar-es-adoptar.svg"
+               alt="Amar es Adoptar" width="180" height="73" />
+          <img class="marca-programa-chica" src="/imagenes/marca/isotipo.svg"
+               alt="Amar es Adoptar" width="40" height="58" />
         </div>
       </div>
 
-      <div class="banda-guinda">
+      <div class="banda-navegacion">
         <nav aria-label="Navegación principal">
           <a href="/#por-que-adoptar">¿Por qué adoptar?</a>
           <a href="/#antes-de-adoptar">¿Qué debes saber antes de adoptar?</a>
           <a href="/#que-tener-listo">¿Qué debes tener listo?</a>
-          <a href="/seres-sintientes">Conoce a los seres sintientes en adopción</a>
+          <a href="/seres-sintientes" aria-current={enCatalogo ? 'page' : undefined}>Conoce a los seres sintientes en adopción</a>
         </nav>
       </div>
     </header>

@@ -1,0 +1,672 @@
+---
+/* Edición de ejemplar, con su historial debajo.
+   El alcance se comprueba en obtenerParaEditar(): a un capturista que pida un
+   ejemplar de otro centro se le responde que no existe. */
+export const prerender = false;
+
+import Administracion from '../../../layouts/Administracion.astro';
+import FormularioEjemplar from '../../../components/FormularioEjemplar.astro';
+import TiraFotos from '../../../components/TiraFotos.astro';
+import { obtenerCatalogos, clavesDe } from '../../../servidor/ejemplares-admin.js';
+import {
+  listar as listarFotos, MAXIMO_POR_EJEMPLAR, urlFoto, retirarArchivos,
+} from '../../../servidor/fotografias.js';
+import { contarPorEjemplar } from '../../../servidor/solicitudes-admin.js';
+import {
+  validar, actualizarEjemplar, obtenerParaEditar, historial, normalizarFolio,
+  aplicarCentroDelPerfil, darDeBaja, reactivar, eliminarEjemplar, solicitudesDe,
+  MOTIVOS_BAJA,
+} from '../../../servidor/ejemplar-escritura.js';
+
+const persona = Astro.locals.persona;
+const { slug } = Astro.params;
+const ip = Astro.request.headers.get('cf-connecting-ip');
+
+let ejemplar = await obtenerParaEditar(persona, slug);
+if (!ejemplar) return new Response(null, { status: 404 });
+
+const catalogos = await obtenerCatalogos();
+const claves = clavesDe(catalogos);
+
+
+let valores = { ...ejemplar };
+let errores = {};
+const esAlta = Astro.url.searchParams.get('alta') === '1';
+let aviso = esAlta
+  ? 'Ejemplar dado de alta con sus fotografías. Puedes agregar las que falten, cambiarlas o reordenarlas en el recuadro de abajo.'
+  : null;
+
+/* La pantalla atiende cuatro acciones y el formulario dice cuál es: guardar
+   cambios, dar de baja, reincorporar y borrar. El cuerpo de la petición se lee
+   UNA sola vez —es un flujo y no se puede leer dos— y de ahí se reparte. */
+let errorRiesgo = null;
+/* Lo que se capturó en el bloque de baja, para repintarlo si se rechaza.
+   Sin esto, olvidar la nota obliga a volver a elegir el motivo: el formulario
+   castiga el error con trabajo, que es la manera más segura de que alguien
+   escriba cualquier cosa con tal de pasar. */
+let bajaCapturada = { motivo: '', nota: '' };
+
+if (Astro.request.method === 'POST') {
+  const crudo = Object.fromEntries(await Astro.request.formData());
+  const accion = crudo.accion ?? 'guardar';
+
+  if (accion === 'baja') {
+    bajaCapturada = { motivo: String(crudo.motivo ?? ''), nota: String(crudo.nota ?? '') };
+    const r = await darDeBaja(persona, ejemplar, crudo.motivo, crudo.nota, ip);
+    if (r.error) errorRiesgo = r.error;
+    else return Astro.redirect(`/admin/ejemplar/${slug}?baja=1`);
+
+  } else if (accion === 'reactivar') {
+    const r = await reactivar(persona, ejemplar, ip);
+    if (r.error) errorRiesgo = r.error;
+    else return Astro.redirect(`/admin/ejemplar/${slug}?reactivado=1`);
+
+  } else if (accion === 'eliminar') {
+    const r = await eliminarEjemplar(persona, ejemplar, crudo.confirmacion, ip, retirarArchivos);
+    if (r.error) errorRiesgo = r.error;
+    else return Astro.redirect('/admin/catalogo?borrado=1');
+
+  } else {
+  const datos = aplicarCentroDelPerfil(persona, crudo, { esAlta: false, ejemplar });
+  valores = { ...ejemplar, ...datos };
+
+  const folioDesbloqueado = Boolean(datos.folio_desbloqueado);
+  const revision = validar(datos, claves, { esAlta: false, folioDesbloqueado });
+  errores = revision.errores;
+
+  // Un guardado que falla nunca debe quedarse callado.
+  if (Object.keys(errores).length > 0 && !errores.general) {
+    errores.general = 'No se guardó: revisa los campos señalados.';
+  }
+
+  if (Object.keys(errores).length === 0) {
+    try {
+      const resultado = await actualizarEjemplar(persona, ejemplar, revision.valores, {
+        folioDesbloqueado,
+        confirmaCondicion: Boolean(datos.confirma_condicion),
+      }, ip);
+
+      if (resultado.errores) {
+        errores = resultado.errores;
+      } else if (resultado.sinCambios) {
+        aviso = 'No había nada que cambiar.';
+      } else {
+        ejemplar = await obtenerParaEditar(persona, slug);
+        valores = { ...ejemplar };
+        aviso = resultado.cambios === 1
+          ? 'Se guardó un cambio.'
+          : `Se guardaron ${resultado.cambios} cambios.`;
+      }
+    } catch (e) {
+      errores = { general: `No se pudo guardar: ${e.message}` };
+    }
+  }
+
+  const folio = normalizarFolio(valores.folio_interno);
+  if (folio) valores.folio_interno = folio;
+  }
+}
+
+const bitacora = await historial(ejemplar.id);
+
+/* Cuántas solicitudes tiene: decide si el registro se puede borrar o sólo
+   dar de baja. */
+const cuantasSolicitudes = await solicitudesDe(ejemplar.id);
+const estaDeBaja = ejemplar.condicion === 'BAJA';
+
+const avisoRiesgo =
+  Astro.url.searchParams.get('baja') === '1'
+    ? 'Ejemplar dado de baja. Ya no aparece en el portal público; su registro se conserva.'
+    : Astro.url.searchParams.get('reactivado') === '1'
+      ? 'Ejemplar reincorporado. Vuelve al portal público como disponible.'
+      : null;
+
+/* Fotografías del ejemplar. Se consultan después del POST para que, si el
+   guardado cambió algo, la tira refleje el estado actual. */
+const fotos = await listarFotos(ejemplar.id);
+const libres = MAXIMO_POR_EJEMPLAR - fotos.length;
+const rutaFotos = `/admin/ejemplar/${ejemplar.slug}/fotos`;
+
+/* Interés que ha despertado el ejemplar. Aparece en su ficha porque es el
+   dato que decide si conviene moverle la condición. */
+const solicitudes = await contarPorEjemplar(ejemplar.id);
+
+/* La clave del registro es centro de origen + folio, y no cambia nunca (D-05).
+   Pero si el ejemplar fue trasladado, quien lea sólo la clave iría a buscarlo
+   al centro equivocado: el catálogo dice Galeana y la ficha decía BVA. Por eso
+   la clave se conserva y se le añade dónde está hoy, sólo cuando difiere. */
+const trasladado = ejemplar.centro_actual_clave !== ejemplar.centro_origen_clave;
+
+const fecha = (iso) =>
+  new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+---
+<Administracion titulo={ejemplar.nombre} persona={persona} ancho="lectura">
+  <p class="migaja"><a href="/admin/catalogo">‹ Catálogo</a></p>
+
+  <div class="titulo">
+    <div>
+      <p class="folio">
+        {ejemplar.centro_origen_clave}{' · '}{ejemplar.folio_interno}
+        {trasladado && <span class="hoy">{' · '}hoy en {ejemplar.centro_etiqueta}</span>}
+      </p>
+      <h1>{ejemplar.nombre}</h1>
+    </div>
+    <div class="atajos">
+      {solicitudes.total > 0 && (
+        <a class="solicitudes" href={`/admin/solicitudes?texto=${ejemplar.folio_interno}`}>
+          {solicitudes.total === 1 ? '1 solicitud' : `${solicitudes.total} solicitudes`}
+          {solicitudes.abiertas > 0 && ` · ${solicitudes.abiertas} sin resolver`}
+        </a>
+      )}
+      {!['ADOPTADO', 'BAJA'].includes(ejemplar.condicion) && (
+        <a href={`/seres-sintientes/${ejemplar.slug}`} target="_blank" rel="noopener">
+          Ver ficha pública
+        </a>
+      )}
+    </div>
+  </div>
+
+  {aviso && <p class="aviso">{aviso}</p>}
+  {avisoRiesgo && <p class="aviso">{avisoRiesgo}</p>}
+  {errorRiesgo && <p class="error-riesgo">{errorRiesgo}</p>}
+
+  {estaDeBaja && (
+    <div class="de-baja">
+      <p>
+        <strong>Este ejemplar está dado de baja.</strong> No aparece en el portal público.
+      </p>
+      <p class="motivo">
+        Motivo: {MOTIVOS_BAJA.find((m) => m.clave === ejemplar.baja_motivo)?.etiqueta ?? ejemplar.baja_motivo}
+        {ejemplar.baja_nota && ` · ${ejemplar.baja_nota}`}
+      </p>
+      <form method="POST">
+        <input type="hidden" name="accion" value="reactivar" />
+        <button type="submit" class="boton boton-linea">Reincorporar al catálogo</button>
+      </form>
+    </div>
+  )}
+  {/* Los datos primero, las fotografías después y los botones al final:
+      Guardar cierra TODO lo que hay arriba, así que tiene que verse al final
+      de todo. Las fotografías van dentro del componente, en su hueco de
+      contenido, porque es la única forma de meterlas entre el último bloque
+      de datos y los botones.
+      El contenedor de fuera existe porque los estilos de un componente están
+      aislados: desde aquí no se le puede dar margen al formulario. */}
+  <div class="bloque-formulario">
+    <FormularioEjemplar
+      modo="edicion" valores={valores} errores={errores}
+      catalogos={catalogos} persona={persona} ejemplar={ejemplar}>
+    {/* <fieldset> y no <section>: es el mismo elemento que usan «Datos del
+        ejemplar» y «Datos internos», y así las fotografías se ven como un
+        bloque más de lo que se está editando, no como un anexo aparte.
+        Está FUERA del <form> de datos —vive en el hueco de contenido—, que
+        es lo que permite que la tira traiga sus propios formularios sin
+        anidar uno dentro de otro. Un <fieldset> fuera de un formulario es
+        HTML válido: agrupa controles, no los envía. */}
+    <fieldset class="fotos">
+      <legend>Fotografías</legend>
+
+      {/* La tira la pinta el componente, y la vuelve a pintar la ruta parcial
+          cada vez que se sube, se quita o se reordena algo. El id `tira-fotos`
+          que lleva dentro es de lo que tira el script de más abajo. */}
+      <TiraFotos ejemplar={ejemplar} fotos={fotos} libres={libres} />
+
+      {/* Todo lo que sigue vive FUERA de la tira a propósito, porque la tira se
+          reemplaza entera en cada acción: si el archivo elegido o el aviso de
+          error estuvieran dentro, desaparecerían justo cuando hacen falta.
+          Sólo sirve con JavaScript, por eso empieza oculto. */}
+      <p class="fallo-foto" id="fallo-foto" role="alert" hidden></p>
+
+      <input type="file" id="archivo-foto" accept="image/jpeg,image/png,image/webp" hidden />
+
+      <div class="previa-foto" id="previa-foto" hidden>
+        <p class="rotulo-previa">Así se va a guardar</p>
+        <img id="muestra-foto" alt="Vista previa del recorte" width="480" height="360" />
+        <p class="detalle-previa" id="detalle-foto"></p>
+        <div class="mandos-previa">
+          <button type="button" class="boton boton-solido" id="guardar-foto">Guardar fotografía</button>
+          <button type="button" class="boton boton-linea" id="otra-foto">Elegir otra</button>
+          {/* Se llama «Cancelar», no «Quitar»: no borra nada, sólo descarta el
+              archivo que todavía no se ha subido. Dos botones con la misma
+              palabra y consecuencias distintas en la misma pantalla es
+              precisamente lo que no debe pasar. */}
+          <button type="button" class="boton boton-linea" id="descartar-foto">Cancelar</button>
+        </div>
+      </div>
+    </fieldset>
+    </FormularioEjemplar>
+  </div>
+
+  {!estaDeBaja && (
+    <section class="riesgo">
+      <h2>Dar de baja</h2>
+      <p class="explica">
+        Para un animal que salió del programa: falleció, se trasladó fuera, lo recogió su
+        familia, <strong>o su conducta cambió y dejó de ser apto para adopción</strong>. Ésta
+        es la salida del portal: no hay otra. El ejemplar desaparece de inmediato y su
+        registro se conserva, con las solicitudes que haya recibido. Se puede reincorporar
+        después.
+      </p>
+
+      <form method="POST" class="forma-riesgo">
+        <input type="hidden" name="accion" value="baja" />
+        <div class="campo">
+          <label for="motivo">Motivo <span class="req" aria-hidden="true">*</span></label>
+          <select id="motivo" name="motivo" required>
+            <option value="">Elige…</option>
+            {MOTIVOS_BAJA.map((m) => (
+              <option value={m.clave} selected={bajaCapturada.motivo === m.clave}>{m.etiqueta}</option>
+            ))}
+          </select>
+        </div>
+        <div class="campo">
+          <label for="nota">Nota <span class="opcional">(obligatoria si es «otro» o cambio de conducta)</span></label>
+          {/* Varias líneas: aquí se escribe lo que pasó con el animal, y en
+              un renglón de una sola línea no se ve lo que uno acaba de
+              escribir. Es el único texto libre de esta pantalla. */}
+          <textarea id="nota" name="nota" maxlength="200" rows="3"
+                    placeholder="Por ejemplo: se entregó al rescatista que lo llevó"
+          >{bajaCapturada.nota}</textarea>
+        </div>
+        {/* Iconos dibujados aquí mismo: son dos trazos, y una librería de
+            iconos por dos dibujos no se justifica. Van ocultos al lector de
+            pantalla porque la palabra del botón ya lo dice todo. */}
+        <button type="submit" class="boton boton-cuidado">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3v10m0 0 3.5-3.5M12 13 8.5 9.5" />
+            <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+          </svg>
+          Dar de baja
+        </button>
+      </form>
+    </section>
+  )}
+
+  <section class="riesgo borrar">
+    <h2>Borrar el registro</h2>
+
+    {cuantasSolicitudes > 0 ? (
+      <p class="explica">
+        Este ejemplar {cuantasSolicitudes === 1 ? 'tiene una solicitud de adopción' : `tiene ${cuantasSolicitudes} solicitudes de adopción`}.
+        <strong> No se puede borrar.</strong> Alguien llegó a preguntar por él y su historia
+        forma parte del expediente: lo que corresponde es darlo de baja.
+      </p>
+    ) : (
+      <>
+        <p class="explica">
+          Sólo para lo que nunca debió existir: un duplicado o una captura equivocada.
+          Borra el registro y sus fotografías <strong>de forma definitiva</strong>. Queda un
+          respaldo completo en la bitácora, pero el ejemplar desaparece del catálogo.
+          Si el animal existió de verdad, la baja es lo que corresponde, no esto.
+        </p>
+
+        <form method="POST" class="forma-riesgo"
+              onsubmit="return confirm('Esto borra el registro y sus fotografías de forma definitiva. ¿Continuar?')">
+          <input type="hidden" name="accion" value="eliminar" />
+          <div class="campo">
+            <label for="confirmacion">
+              Escribe el folio <strong>{ejemplar.folio_interno}</strong> para confirmar
+            </label>
+            <input type="text" id="confirmacion" name="confirmacion" required
+                   inputmode="numeric" maxlength="5" autocomplete="off"
+                   placeholder={ejemplar.folio_interno} />
+          </div>
+          <button type="submit" class="boton boton-peligro">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+            </svg>
+            Borrar definitivamente
+          </button>
+        </form>
+      </>
+    )}
+  </section>
+
+  <section class="historial">
+    <h2>Historial</h2>
+    {bitacora.length === 0 ? (
+      <p class="vacio">Sin movimientos registrados.</p>
+    ) : (
+      <ol>
+        {bitacora.map((b) => (
+          <li>
+            <span class="cuando">{fecha(b.ocurrido_en)}</span>
+            <span class="que">
+              {b.accion === 'ALTA' && <>Alta del ejemplar</>}
+              {b.accion === 'TRASLADO' && <>Traslado de centro: {b.valor_anterior} → {b.valor_nuevo}</>}
+              {b.accion === 'CAMBIO' && <>{b.campo}: <s>{b.valor_anterior || '—'}</s> → {b.valor_nuevo}</>}
+              {b.accion === 'BAJA' && <>Baja del registro</>}
+            </span>
+            <span class="quien">{b.usuario ?? 'sistema'}</span>
+          </li>
+        ))}
+      </ol>
+    )}
+  </section>
+</Administracion>
+
+<script>
+  /* Fotografías sin recargar la ficha.
+   *
+   * POR QUÉ IMPORTA QUE NO RECARGUE
+   * Si al subir una foto la página se recargara, se perdería sin aviso lo que
+   * la persona llevara escrito en el formulario de datos —el nombre, la
+   * edad— sin haber guardado. Ése era el único argumento de peso para tener
+   * las fotografías en otra pantalla.
+   *
+   * CÓMO FUNCIONA
+   * El servidor sigue armando el HTML de la tira; aquí sólo se le pide y se
+   * pega en su lugar. Por eso este archivo es corto: no construye nada.
+   *
+   * DELEGACIÓN
+   * Los oyentes se ponen en la sección, que nunca se reemplaza, y no en los
+   * botones, que desaparecen en cada recambio. Así no hay que volver a
+   * conectarlos: es el error clásico de este patrón —funciona la primera vez
+   * y deja de funcionar a partir de la segunda—.
+   */
+  import { prepararTamanos, enviarAccion } from '../../../cliente/fotografias.js';
+
+  const seccion = document.querySelector('.fotos');
+  const entrada = document.getElementById('archivo-foto');
+
+  if (seccion && entrada) {
+    const previa = document.getElementById('previa-foto');
+    const muestra = document.getElementById('muestra-foto');
+    const detalle = document.getElementById('detalle-foto');
+    const guardar = document.getElementById('guardar-foto');
+    const otra = document.getElementById('otra-foto');
+    const descartar = document.getElementById('descartar-foto');
+    const fallo = document.getElementById('fallo-foto');
+
+    let preparados = null;
+    let urlPrevia = null;     // se libera siempre, para no dejar memoria colgada
+
+    /** El bloque que se reemplaza. Se vuelve a buscar cada vez porque el
+        anterior deja de existir en cuanto se sustituye. */
+    const tira = () => document.getElementById('tira-fotos');
+
+    /** Pide el fragmento al servidor y lo pone en su lugar.
+        Devuelve true si se pudo; false si falló la red o la sesión. */
+    async function refrescar(campos, blobs = null) {
+      const bloque = tira();
+      fallo.hidden = true;
+
+      const respuesta = await enviarAccion(bloque.dataset.parcial, campos, blobs);
+
+      if (respuesta.ok) {
+        // `outerHTML` cambia el bloque entero, incluido su propio contenedor.
+        bloque.outerHTML = respuesta.html;
+        return true;
+      }
+
+      fallo.textContent = respuesta.error;
+      fallo.hidden = false;
+      return false;
+    }
+
+    /* --- Mandos de cada fotografía ---------------------------------------
+       Los formularios siguen apuntando a la página de fotografías, que es lo
+       que los hace servir sin JavaScript. Aquí se intercepta el envío y se
+       manda al parcial. */
+    seccion.addEventListener('submit', async (evento) => {
+      const forma = evento.target.closest('#tira-fotos form');
+      if (!forma) return;
+
+      // El confirm() de «Quitar» ya canceló el envío: no hay nada que hacer.
+      if (evento.defaultPrevented) return;
+
+      evento.preventDefault();
+      for (const b of forma.querySelectorAll('button')) b.disabled = true;
+
+      const campos = {};
+      for (const [nombre, valor] of new FormData(forma)) campos[nombre] = valor;
+
+      const salioBien = await refrescar(campos);
+      if (!salioBien) {
+        // La tira no se reemplazó, así que estos botones siguen siendo los
+        // mismos: hay que devolverles la vida para poder reintentar.
+        for (const b of forma.querySelectorAll('button')) b.disabled = false;
+      }
+    });
+
+    /* --- Agregar fotografía ---------------------------------------------- */
+    seccion.addEventListener('click', (evento) => {
+      if (evento.target.closest('#abrir-archivo')) entrada.click();
+    });
+
+    function limpiarSeleccion() {
+      entrada.value = '';
+      preparados = null;
+      previa.hidden = true;
+      detalle.textContent = '';
+      muestra.removeAttribute('src');
+      guardar.disabled = false;
+      guardar.textContent = 'Guardar fotografía';
+      if (urlPrevia) { URL.revokeObjectURL(urlPrevia); urlPrevia = null; }
+    }
+
+    otra.addEventListener('click', () => entrada.click());
+    descartar.addEventListener('click', limpiarSeleccion);
+
+    entrada.addEventListener('change', async () => {
+      const archivo = entrada.files?.[0];
+      if (!archivo) return;
+
+      preparados = null;
+      guardar.disabled = true;
+      if (urlPrevia) { URL.revokeObjectURL(urlPrevia); urlPrevia = null; }
+
+      try {
+        const { blobs, ancho, alto, bytes } = await prepararTamanos(archivo);
+        preparados = blobs;
+        urlPrevia = URL.createObjectURL(blobs.tarjeta);
+        muestra.src = urlPrevia;
+        detalle.textContent =
+          `Original ${ancho}×${alto}. Se guardan cuatro tamaños, ` +
+          `${Math.round(bytes / 1024)} kB en total.`;
+        guardar.disabled = false;
+      } catch {
+        muestra.removeAttribute('src');
+        detalle.textContent = 'No se pudo leer ese archivo como imagen. Elige otra.';
+      }
+      previa.hidden = false;
+    });
+
+    guardar.addEventListener('click', async () => {
+      if (!preparados) return;
+      guardar.disabled = true;
+      guardar.textContent = 'Guardando…';
+
+      if (await refrescar({ accion: 'subir' }, preparados)) {
+        limpiarSeleccion();
+      } else {
+        // Se conserva lo ya recortado para que pueda reintentar sin volver
+        // a elegir el archivo.
+        guardar.disabled = false;
+        guardar.textContent = 'Guardar fotografía';
+      }
+    });
+  }
+</script>
+
+<style>
+
+  /* El encabezado tiene que medir lo mismo que el contenido. Cuando ocupaba
+     los 1180 px del contenedor y todo lo demás se quedaba en 46rem, los
+     atajos se iban 450 px a la derecha y la pantalla se leía como dos
+     columnas que no se hablan. */
+  .titulo {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 16px 20px; flex-wrap: wrap; margin-bottom: 18px;
+    max-width: var(--ancho-lectura);
+  }
+  .folio {
+    font-family: ui-monospace, monospace; font-size: 0.8125rem;
+    color: var(--gris-claro); margin: 0;
+  }
+  /* Fuera de la monoespaciada a propósito: no forma parte de la clave del
+     registro, es una indicación de dónde encontrar al animal. */
+  .hoy { font-family: inherit; color: var(--dorado-texto); }
+  h1 { color: var(--principal); font-size: 1.5rem; margin: 2px 0 0; overflow-wrap: anywhere; }
+  .atajos { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+  .atajos .solicitudes {
+    font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase;
+    border: 1px solid var(--alto); border-radius: 999px; padding: 4px 12px;
+    background: var(--alto-fondo); color: var(--alto); text-decoration: none;
+  }
+  .atajos .solicitudes:hover { background: var(--alto); color: var(--blanco); }
+  .atajos a { font-size: 0.875rem; }
+
+  .aviso {
+    border-left: 3px solid var(--dorado); background: var(--crema);
+    padding: 12px 14px; margin: 0 0 20px; color: var(--gris); max-width: var(--ancho-lectura);
+  }
+
+  /* Los estilos de la tira viven en `components/TiraFotos.astro`, junto al
+     marcado que estilan. Aquí sólo queda lo propio de esta pantalla: el
+     panel de vista previa, que no es parte de la tira porque sobrevive a
+     cada recambio. */
+  .fallo-foto {
+    margin: 12px 0 0; padding: 10px 14px; font-size: 0.875rem;
+    border-left: 3px solid var(--alto); background: var(--alto-fondo);
+    color: var(--alto); border-radius: 6px;
+  }
+
+  .previa-foto {
+    margin-top: 16px; padding: 14px; background: var(--crema); border-radius: 10px;
+  }
+  .rotulo-previa {
+    font-size: 0.6875rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--dorado-texto); margin: 0 0 8px;
+  }
+  .previa-foto img {
+    width: 100%; max-width: 300px; aspect-ratio: 4 / 3;
+    object-fit: cover; object-position: top center; border-radius: 6px;
+  }
+  .detalle-previa { font-size: 0.8125rem; color: var(--gris-claro); margin: 8px 0 0; }
+  .mandos-previa { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+  /* --- Secciones de la ficha ---------------------------------------------
+     Tres cosas distintas, tres tratamientos distintos. Antes las cuatro
+     zonas se veían iguales —el mismo rótulo, el mismo filete— y eso hacía
+     que «Borrar el registro» pareciera un apartado más del formulario:
+
+       · FOTOGRAFÍAS es parte del registro. Lleva la MISMA caja que «Datos
+         del ejemplar» y «Datos internos», porque se edita en el mismo acto
+         y se guarda con el mismo botón.
+       · DAR DE BAJA y BORRAR actúan SOBRE un registro que ya existe; no lo
+         editan, y no los alcanza el botón de guardar. Van en cajas con color
+         propio y fuera del formulario, para que nadie las tome por un campo
+         más: ámbar para «avanza con cuidado», guinda para «alto», que es lo
+         que esos dos colores significan en todo el sistema.
+       · HISTORIAL sólo informa: un filete y nada más.
+     ----------------------------------------------------------------------- */
+
+  /* Copia del recuadro de FormularioEjemplar.astro. Se repite porque los
+     estilos de un componente están aislados y desde aquí no alcanzan al
+     <fieldset> que vive en su hueco de contenido. Si allá cambia el
+     recuadro, hay que cambiarlo también aquí. */
+  .fotos {
+    max-width: var(--ancho-lectura);
+    border: 1px solid var(--linea); border-radius: 10px;
+    padding: 20px 20px 24px; margin: 0 0 30px;
+    /* El navegador le pone a todo <fieldset> un ancho mínimo igual al de su
+       contenido. Sin esto, la rejilla de fotografías no puede encogerse y
+       desborda la columna en pantallas angostas. */
+    min-width: 0;
+  }
+  .fotos legend {
+    font-size: 0.8125rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--gris); padding-inline: 8px; font-weight: 700;
+  }
+
+  .historial {
+    max-width: var(--ancho-lectura);
+    margin-top: 44px; padding-top: 24px;
+    border-top: 1px solid var(--linea);
+  }
+  /* Los datos del ejemplar no llevan filete propio: sus cajas ya dicen
+     dónde empieza cada grupo. Sólo necesitan despegarse del encabezado. */
+  .bloque-formulario { margin-top: 28px; }
+  .riesgo h2, .historial h2 {
+    font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--gris); margin: 0 0 12px;
+  }
+
+  .historial ol { list-style: none; padding: 0; margin: 0; }
+  .historial li {
+    display: grid; gap: 2px 14px; padding: 10px 0;
+    border-bottom: 1px solid var(--linea); font-size: 0.875rem;
+  }
+  @media (min-width: 640px) {
+    .historial li { grid-template-columns: 11rem 1fr auto; align-items: baseline; }
+  }
+  .cuando { color: var(--gris-claro); font-size: 0.8125rem; }
+  .que { color: var(--texto); }
+  .que s { color: var(--gris-claro); }
+  .quien { color: var(--gris-claro); font-size: 0.8125rem; }
+  .vacio { color: var(--gris-claro); }
+
+  /* --- Acciones sobre un registro que ya existe ---------------------------
+     Cada una en su propia caja de color, para que se lean como lo que son:
+     algo distinto de editar los datos de arriba. El tono es suave y el canto
+     izquierdo grueso lleva el color saturado. Un recuadro que grita se ve
+     todo el día y deja de gritar; lo que tiene que pesar es el texto que
+     explica la consecuencia, y por eso va dentro de la caja, antes del
+     botón. */
+  .riesgo {
+    max-width: var(--ancho-lectura);
+    margin-top: 32px; padding: 20px; border-radius: 10px;
+    background: var(--atencion-fondo);
+    border: 1px solid color-mix(in srgb, var(--atencion) 32%, transparent);
+    border-left: 3px solid var(--atencion);
+  }
+  .riesgo h2 { color: var(--atencion); }
+  .riesgo.borrar {
+    background: var(--alto-fondo);
+    border-color: color-mix(in srgb, var(--peligro) 32%, transparent);
+    border-left-color: var(--peligro);
+  }
+  .riesgo.borrar h2 { color: var(--peligro); }
+  .riesgo .explica { color: var(--gris); font-size: 0.875rem; margin: 0 0 16px; }
+
+  /* `align-items: end` pegaba los tres al borde inferior, y como la nota es
+     un textarea más alto que el desplegable, la etiqueta «Motivo» bajaba y
+     dejaba de estar al parejo de «Nota». Ahora las etiquetas arrancan a la
+     misma altura y sólo el botón se alinea abajo, que es donde se espera. */
+  .forma-riesgo { display: grid; gap: 14px; align-items: start; }
+  @media (min-width: 640px) { .forma-riesgo { grid-template-columns: 1fr 1fr auto; } }
+  .forma-riesgo > .boton { align-self: end; }
+  .forma-riesgo .campo label {
+    display: block; font-size: 0.8125rem; font-weight: 500; margin-bottom: 5px;
+  }
+  .forma-riesgo .opcional { font-weight: 400; color: var(--gris-claro); }
+  .forma-riesgo textarea {
+    width: 100%; padding: 10px 12px; font-family: var(--cuerpo); font-size: 0.9375rem;
+    border: 1px solid var(--linea-campo); border-radius: 6px; background: var(--blanco);
+    color: var(--texto); resize: vertical; min-height: 44px;
+  }
+  .forma-riesgo select, .forma-riesgo input {
+    width: 100%; padding: 10px 12px; font-family: var(--cuerpo); font-size: 0.9375rem;
+    border: 1px solid var(--linea-campo); border-radius: 6px; background: var(--blanco);
+    color: var(--texto);
+  }
+  /* Los dos botones que actúan sobre el registro usan las variantes
+     definidas en global.css: boton-cuidado (ámbar, reversible) y
+     boton-peligro (rojo, definitivo). Aquí no se redefinen. */
+
+  .de-baja {
+    border-left: 3px solid var(--inactivo); background: var(--inactivo-fondo);
+    padding: 14px 16px; margin: 0 0 20px; max-width: var(--ancho-lectura); color: var(--gris);
+  }
+  .de-baja p { margin: 0 0 8px; }
+  .de-baja .motivo { font-size: 0.875rem; }
+  .de-baja form { margin: 12px 0 0; }
+
+  .error-riesgo {
+    border-left: 3px solid var(--alto); background: var(--alto-fondo);
+    padding: 12px 14px; margin: 0 0 18px; color: var(--alto); max-width: var(--ancho-lectura);
+  }
+</style>

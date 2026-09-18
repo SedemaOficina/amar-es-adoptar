@@ -1,0 +1,48 @@
+---
+/* Ruta parcial: devuelve SÓLO la tira de fotografías, sin plantilla ni
+ * encabezado, para que la ficha la pegue en su sitio sin recargar.
+ *
+ * `partial = true` es lo que se lo dice a Astro: no envuelve la salida en un
+ * documento HTML completo. Si abres esta dirección en el navegador vas a ver
+ * un pedazo suelto y sin estilos; es lo esperado, no está rota.
+ *
+ * La acción la resuelve `aplicarAccion`, la misma función que usa la página
+ * de fotografías. El marcado lo pone `TiraFotos`, el mismo componente que usa
+ * la ficha. Aquí no se decide nada: sólo se juntan las dos piezas.
+ */
+export const prerender = false;
+export const partial = true;
+
+import TiraFotos from '../../../../components/TiraFotos.astro';
+import { obtenerParaEditar } from '../../../../servidor/ejemplar-escritura.js';
+import { aplicarAccion, listar, MAXIMO_POR_EJEMPLAR }
+  from '../../../../servidor/fotografias.js';
+
+const persona = Astro.locals.persona;
+
+/* El middleware garantiza que hay sesión, no que esta persona pueda tocar
+   ESTE ejemplar. Una capturista de Ajusco no alcanza los de BVA ni llamando
+   a esta dirección a mano. */
+const ejemplar = await obtenerParaEditar(persona, Astro.params.slug);
+if (!ejemplar) return new Response(null, { status: 404 });
+
+/* Un fragmento no lleva <meta charset>, así que si no se declara aquí el
+   navegador lo interpreta como Windows-1252: la flecha ↑ sale como «â†'» y
+   cualquier acento se rompe. La página completa no tiene este problema
+   porque su <head> lo declara. */
+Astro.response.headers.set('content-type', 'text/html; charset=utf-8');
+
+let resultado = {};
+if (Astro.request.method === 'POST') {
+  resultado = await aplicarAccion(ejemplar, await Astro.request.formData());
+}
+
+const fotos = await listar(ejemplar.id);
+const libres = Math.max(0, MAXIMO_POR_EJEMPLAR - fotos.length);
+---
+<TiraFotos
+  ejemplar={ejemplar}
+  fotos={fotos}
+  libres={libres}
+  aviso={resultado.aviso ?? null}
+  error={resultado.error ?? null} />

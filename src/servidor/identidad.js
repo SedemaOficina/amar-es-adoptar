@@ -84,5 +84,15 @@ export async function identificarConCodigo(url, codigo) {
     throw new Error('El proveedor no devolvió un identificador de persona utilizable.');
   }
 
-  return String(sub);
+  /* El correo se devuelve junto al identificador porque es lo único que ata a
+     una persona recién autorizada con su primer ingreso: la Secretaría da de
+     alta un correo, y hasta que esa persona entra no existe identificador que
+     capturar. Ver `vincularPorCorreo` en `personal-admin.js`.
+
+     Los nombres posibles del campo se resuelven aquí y en ningún otro sitio,
+     por la misma razón que el identificador: si Llave CDMX lo llama distinto,
+     se corrige en un solo lugar. */
+  const correo = perfil.email ?? perfil.correo ?? perfil.correo_electronico ?? null;
+
+  return { sub: String(sub), correo: correo ? String(correo) : null };
 }

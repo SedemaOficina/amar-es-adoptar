@@ -1,77 +1,950 @@
 ---
-/* Marcador de posición del formulario de solicitud (etapa 4).
-   Existe desde ahora para que el recorrido del portal esté completo y se
-   pueda enseñar de punta a punta, y para dejar documentado en el propio
-   sitio qué tiene que ocurrir aquí. */
-import Base from '../../layouts/Base.astro';
-import { obtenerEjemplares, etiqueta } from '../../datos/ejemplares.js';
+/* Solicitud de adopción — etapa 4.
+ *
+ * Se sirve desde el servidor: necesita conocer a la persona identificada y el
+ * estado vigente del ejemplar.
+ *
+ * Recorrido: ficha → «Adóptame» → identificación → este formulario → folio.
+ *
+ * Las reglas no viven aquí: están en `servidor/solicitudes.js`, y el texto de
+ * las preguntas en `servidor/cuestionario.js`.
+ */
+export const prerender = false;
 
-export function getStaticPaths() {
-  return obtenerEjemplares().map((ejemplar) => ({
-    params: { slug: ejemplar.slug },
-    props: { ejemplar },
-  }));
+import Base from '../../layouts/Base.astro';
+import {
+  obtenerParaSolicitud, reconocible, admiteSolicitudes,
+} from '../../servidor/ejemplares-publico.js';
+import { urlFoto } from '../../servidor/fotografias.js';
+import { leerSolicitante, cerrarSesionSolicitante } from '../../servidor/solicitante.js';
+import { validar, crear, solicitudPrevia } from '../../servidor/solicitudes.js';
+import {
+  PREGUNTAS_UNICAS, PREGUNTAS_MULTIPLES, LETRAS_MULTIPLES, CIERRE,
+} from '../../servidor/cuestionario.js';
+import { ALCALDIAS } from '../../servidor/territorio.js';
+
+const { slug } = Astro.params;
+
+/* Esta pantalla sí necesita los campos internos: la solicitud guarda una
+   instantánea del registro. Se escriben en la base, no en la pantalla. */
+const ejemplar = await obtenerParaSolicitud(slug);
+
+/* Un ejemplar dado de baja no existe para el portal: responde 404, igual que
+   su ficha y que una dirección inventada. Que uno adoptado sí llegue hasta
+   aquí es deliberado: quien guardó el enlace merece leer que ya encontró
+   hogar, y eso no revela nada que la Secretaría deba reservarse. */
+if (!reconocible(ejemplar)) return new Response(null, { status: 404 });
+
+const solicitante = await leerSolicitante(Astro.session);
+const abierto = admiteSolicitudes(ejemplar);
+
+let errores = {};
+let valores = {};
+let previa = null;
+
+if (solicitante) {
+  previa = await solicitudPrevia(solicitante.sub, ejemplar.id);
+
+  // Lo que ya trae la cuenta se muestra prellenado; la persona lo confirma.
+  valores = {
+    calle: solicitante.calle,
+    numero_exterior: solicitante.numero_exterior,
+    numero_interior: solicitante.numero_interior,
+    codigo_postal: solicitante.codigo_postal,
+    alcaldia: solicitante.alcaldia,
+    colonia: solicitante.colonia,
+    telefono_celular: solicitante.telefono_celular,
+    correo_electronico: solicitante.correo_electronico,
+  };
 }
 
-const { ejemplar } = Astro.props;
+if (Astro.request.method === 'POST') {
+  const datos = Object.fromEntries(await Astro.request.formData());
+
+  if (datos.accion === 'salir') {
+    cerrarSesionSolicitante(Astro.session);
+    return Astro.redirect(`/adoptar/${slug}`);
+  }
+
+  // Todo se vuelve a comprobar en el servidor: que el navegador haya exigido
+  // los campos no es garantía de nada (D-46).
+  if (!solicitante) return Astro.redirect(`/adoptar/${slug}`);
+  if (!abierto) return Astro.redirect(`/adoptar/${slug}`);
+  if (previa) return Astro.redirect(`/adoptar/${slug}`);
+
+  const revision = validar(datos);
+  errores = revision.errores;
+  valores = { ...datos };
+
+  if (Object.keys(errores).length === 0) {
+    try {
+      const { folio } = await crear({ ejemplar, solicitante, valores: revision.valores });
+      return Astro.redirect(`/adoptar/${slug}/enviada?folio=${folio}`);
+    } catch (e) {
+      /* El detalle del fallo va al registro del servidor, no a la pantalla:
+         un mensaje crudo de la base no le dice nada a quien llena el trámite
+         y puede exponer texto interno del sistema. */
+      console.error('[solicitud] fallo al guardar', { slug, error: e?.message });
+      errores.general =
+        'No pudimos registrar tu solicitud en este momento. Vuelve a intentarlo en unos ' +
+        'minutos; si el problema continúa, acude al centro de adopción.';
+    }
+  }
+}
+
+/* Resumen de errores.
+ *
+ * El aviso anterior decía «revisa lo que está señalado abajo» y no llevaba a
+ * ningún lado: con nueve preguntas y ocho campos de domicilio, encontrar el
+ * error era cazarlo a ojo, y en teléfono peor.
+ *
+ * El orden de la lista es el orden de la pantalla, para que bajar por ella
+ * sea bajar por el formulario. */
+const CLAVES_PREGUNTA = new Set(
+  [...PREGUNTAS_UNICAS, ...PREGUNTAS_MULTIPLES].map((p) => p.prefijo ?? p.campo)
+);
+
+const ORDEN_DE_PANTALLA = [
+  'calle', 'numero_exterior', 'numero_interior',
+  'codigo_postal', 'alcaldia', 'colonia',
+  'telefono_celular', 'correo_electronico',
+  ...[...PREGUNTAS_UNICAS, ...PREGUNTAS_MULTIPLES]
+    .sort((a, b) => a.numero - b.numero)
+    .map((p) => p.prefijo ?? p.campo),
+  'acepta_aviso',
+];
+
+/* Cómo se llama cada pregunta, para nombrarla en el resumen.
+
+   ANTES: las ocho preguntas sin responder se listaban como ocho renglones
+   idénticos, «Falta responder esta pregunta.», y la única forma de saber cuál
+   era cada una era abrirlas de una en una. Un resumen de errores existe para
+   llevar al dato que falló; once enlaces iguales no llevan a ninguna parte.
+
+   Bajo el propio campo el mensaje sigue siendo «Falta responder esta
+   pregunta.», que ahí es exacto: la persona está viéndola. */
+const NOMBRE_DE_PREGUNTA = new Map(
+  [...PREGUNTAS_UNICAS, ...PREGUNTAS_MULTIPLES]
+    .map((p) => [p.prefijo ?? p.campo, `Pregunta ${p.numero}: ${p.titulo}`])
+);
+
+const fallas = ORDEN_DE_PANTALLA
+  .filter((clave) => errores[clave])
+  .map((clave) => ({
+    // Un campo se ancla en sí mismo; una pregunta, en su tarjeta completa:
+    // llevar el foco a la primera opción de un grupo de radios esconde el
+    // enunciado, que es justo lo que hay que volver a leer.
+    ancla: CLAVES_PREGUNTA.has(clave) ? `p-${clave}` : clave,
+    mensaje: NOMBRE_DE_PREGUNTA.get(clave) ?? errores[clave],
+  }));
+
+const marcada = (campo, clave) => valores[campo] === clave;
+const encendida = (campo) => valores[campo] === 'on' || valores[campo] === 1 || valores[campo] === '1';
+const fecha = (iso) => new Date(iso).toLocaleDateString('es-MX', { dateStyle: 'long' });
 ---
 <Base titulo={`Solicitud de adopción · ${ejemplar.nombre}`}>
-  <div class="contenedor pendiente-etapa">
-    <p class="regresar">
+  <div class="contenedor pagina">
+    <p class="migaja">
       <a href={`/seres-sintientes/${ejemplar.slug}`}>‹ Regresar a la ficha de {ejemplar.nombre}</a>
     </p>
 
     <h1>Solicitud de adopción</h1>
 
     <div class="resumen">
-      <p class="rotulo">Ser sintiente elegido</p>
-      <p class="nombre">{ejemplar.nombre}</p>
-      <p class="atributos">
-        {etiqueta('edad', ejemplar.edad_clave)} ·
-        {etiqueta('sexo', ejemplar.sexo_clave)} ·
-        {etiqueta('talla', ejemplar.talla_clave)}
-      </p>
+      <img class="retrato" src={urlFoto(ejemplar.portada)}
+           alt={ejemplar.portada
+             ? (ejemplar.portada_alterno ?? `Fotografía de ${ejemplar.nombre}`)
+             : `${ejemplar.nombre} todavía no tiene fotografía`}
+           width="480" height="360" />
+      <div>
+        <p class="rotulo">Ser sintiente elegido</p>
+        <p class="nombre">{ejemplar.nombre}</p>
+        <p class="atributos">
+          {ejemplar.edad_etiqueta} · {ejemplar.sexo_etiqueta} · {ejemplar.talla_etiqueta}
+        </p>
+      </div>
     </div>
 
-    <div class="pendiente">
-      <p><strong>Esta pantalla todavía no está construida.</strong> Corresponde a la etapa 4.</p>
-      <p>Aquí, al llegar desde el botón «Adóptame», el sistema debe:</p>
-      <ol>
-        <li>Redirigir a la autenticación de Llave CDMX.</li>
-        <li>Al regresar, precargar nombre, apellidos y CURP de la cuenta, sin permitir edición.</li>
-        <li>Precargar domicilio y contacto, permitiendo que la persona los corrija.</li>
-        <li>Mostrar el cuestionario de valoración de nueve preguntas.</li>
-        <li>Al enviar, devolver un folio de confirmación con formato AAAA-NNNNNN.</li>
-      </ol>
-    </div>
+    {!abierto ? (
+      <div class="aviso">
+        <p><strong>{ejemplar.nombre} ya encontró hogar.</strong></p>
+        <p>
+          Puedes conocer a los demás seres sintientes que esperan adopción en el{' '}
+          <a href="/seres-sintientes">catálogo</a>.
+        </p>
+      </div>
+    ) : !solicitante ? (
+      <div class="identificacion">
+        <h2>Primero necesitamos saber quién eres</h2>
+        <p>
+          La solicitud se envía con tu identidad verificada. Tu nombre, apellidos y CURP
+          los toma el sistema de tu cuenta; tú sólo confirmas tu domicilio y tus datos de
+          contacto, y respondes el cuestionario.
+        </p>
+        <p class="acciones">
+          <a class="boton boton-solido" href={`/adoptar/${ejemplar.slug}/identificarse`}>
+            Identificarme para continuar
+          </a>
+        </p>
+      </div>
+    ) : previa ? (
+      <div class="aviso">
+        <p><strong>Ya enviaste una solicitud para {ejemplar.nombre}.</strong></p>
+        <p>
+          La recibimos el {fecha(previa.recibida_en)} con el folio{' '}
+          <strong>{previa.folio}</strong>. No hace falta que la vuelvas a enviar: el
+          personal del centro se pondrá en contacto contigo.
+        </p>
+        <p><a href="/seres-sintientes">Ver otros seres sintientes en adopción</a></p>
+      </div>
+    ) : (
+      <>
+        <div class="quien">
+          <p class="rotulo">Solicitud a nombre de</p>
+          <p class="persona">
+            {solicitante.nombres} {solicitante.primer_apellido} {solicitante.segundo_apellido}
+          </p>
+          <p class="curp">CURP: {solicitante.curp}</p>
+          <p class="explica">
+            Estos datos llegan de tu cuenta y no se pueden editar aquí.
+          </p>
+          {solicitante.simulada && (
+            <p class="marca">Identidad simulada de desarrollo. No corresponde a una persona real.</p>
+          )}
+          <form method="POST">
+            <input type="hidden" name="accion" value="salir" />
+            <button type="submit" class="salir">No soy yo, cambiar de cuenta</button>
+          </form>
+        </div>
+
+        {errores.general && (
+          <p class="error-general" role="alert" tabindex="-1">{errores.general}</p>
+        )}
+
+        <div class="resumen-errores" id="resumen-errores" role="alert" tabindex="-1"
+             hidden={fallas.length === 0}>
+          {fallas.length > 0 && (
+            <>
+              <p class="titulo-resumen">
+                <strong>La solicitud no se envió.</strong>{' '}
+                {fallas.length === 1
+                  ? 'Falta corregir un dato:'
+                  : `Faltan por corregir ${fallas.length} datos:`}
+              </p>
+              <ul>
+                {fallas.map((f) => (
+                  <li data-para={f.ancla}><a href={`#${f.ancla}`}>{f.mensaje}</a></li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+
+        {/* `novalidate` no quita la validación: el navegador sigue sabiendo qué
+            campos están mal y el guion de abajo se lo pregunta. Lo que quita es
+            la burbuja amarilla, que aparece de una en una, tapa el campo, se va
+            sola y no la lee un lector de pantalla. En su lugar se arma el mismo
+            resumen que arma el servidor, con todas las faltas a la vez. */}
+        <form method="POST" class="solicitud" novalidate>
+          <fieldset>
+            <legend>¿Dónde vives?</legend>
+            {/* Se dice para qué sirve el domicilio, no sólo que lo revise: quien
+                sabe que ahí va a llegar una visita lo captura con cuidado. Y es
+                además lo correcto en un trámite que recaba datos personales:
+                la persona tiene derecho a saber para qué se usa cada dato antes
+                de darlo. */}
+            <p class="ayuda-bloque">
+              Verifica que tu información sea correcta; de lo contrario, actualízala.
+              En este domicilio se realizará la <strong>visita domiciliaria</strong> que
+              forma parte de la evaluación, en su momento y conforme avance el proceso.
+            </p>
+
+            <div class="filas">
+              <div class="campo campo-ancho">
+                <label for="calle">Calle <span class="req" aria-hidden="true">*</span></label>
+                <input type="text" id="calle" name="calle" maxlength="120" required
+                       autocomplete="address-line1" data-falta="Falta la calle."
+                       aria-invalid={errores.calle ? 'true' : undefined}
+                       aria-describedby={errores.calle ? 'error-calle' : undefined}
+                       value={valores.calle ?? ''} />
+                {errores.calle && <p class="error" id="error-calle">{errores.calle}</p>}
+              </div>
+              <div class="campo">
+                <label for="numero_exterior">Número exterior <span class="req" aria-hidden="true">*</span></label>
+                <input type="text" id="numero_exterior" name="numero_exterior" maxlength="20" required
+                       autocomplete="address-line2" data-falta="Falta el número exterior."
+                       aria-invalid={errores.numero_exterior ? 'true' : undefined}
+                       aria-describedby={errores.numero_exterior ? 'error-numero_exterior' : undefined}
+                       value={valores.numero_exterior ?? ''} />
+                {errores.numero_exterior && <p class="error" id="error-numero_exterior">{errores.numero_exterior}</p>}
+              </div>
+              <div class="campo">
+                <label for="numero_interior">Número interior <span class="opcional">(si aplica)</span></label>
+                <input type="text" id="numero_interior" name="numero_interior" maxlength="20"
+                       autocomplete="address-line3"
+                       value={valores.numero_interior ?? ''} />
+              </div>
+            </div>
+
+            <div class="filas">
+              <div class="campo">
+                <label for="codigo_postal">Código postal <span class="req" aria-hidden="true">*</span></label>
+                <input type="text" id="codigo_postal" name="codigo_postal" inputmode="numeric"
+                       pattern="[0-9]{5}" maxlength="5" required
+                       autocomplete="postal-code"
+                       data-falta="Falta el código postal."
+                       data-formato="El código postal son cinco dígitos."
+                       aria-invalid={errores.codigo_postal ? 'true' : undefined}
+                       aria-describedby={errores.codigo_postal ? 'error-codigo_postal' : undefined}
+                       value={valores.codigo_postal ?? ''} />
+                {errores.codigo_postal && <p class="error" id="error-codigo_postal">{errores.codigo_postal}</p>}
+              </div>
+              <div class="campo">
+                <label for="alcaldia">Alcaldía <span class="req" aria-hidden="true">*</span></label>
+                {/* Lista cerrada, no texto libre: el programa adopta a personas
+                    domiciliadas en la Ciudad de México, y así lo impone el
+                    sistema en lugar de confiar en que alguien lo note al
+                    revisar la solicitud. */}
+                <select id="alcaldia" name="alcaldia" required
+                        autocomplete="address-level2"
+                        data-falta="Falta elegir la alcaldía."
+                        aria-invalid={errores.alcaldia ? 'true' : undefined}
+                        aria-describedby={errores.alcaldia ? 'error-alcaldia' : undefined}>
+                  <option value="">Elige…</option>
+                  {ALCALDIAS.map((a) => (
+                    <option value={a} selected={valores.alcaldia === a}>{a}</option>
+                  ))}
+                </select>
+                {errores.alcaldia && <p class="error" id="error-alcaldia">{errores.alcaldia}</p>}
+              </div>
+              <div class="campo">
+                <label for="colonia">Colonia <span class="req" aria-hidden="true">*</span></label>
+                <input type="text" id="colonia" name="colonia" maxlength="120" required
+                       autocomplete="address-level3" data-falta="Falta la colonia."
+                       aria-invalid={errores.colonia ? 'true' : undefined}
+                       aria-describedby={errores.colonia ? 'error-colonia' : undefined}
+                       value={valores.colonia ?? ''} />
+                {errores.colonia && <p class="error" id="error-colonia">{errores.colonia}</p>}
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>¿Cómo podemos contactarte?</legend>
+            <p class="ayuda-bloque">
+              Estos datos nos permitirán comunicarnos contigo y dar seguimiento al proceso.
+            </p>
+
+            <div class="filas">
+              <div class="campo">
+                <label for="telefono_celular">Teléfono celular <span class="req" aria-hidden="true">*</span></label>
+                <input type="tel" id="telefono_celular" name="telefono_celular"
+                       inputmode="numeric" maxlength="10" minlength="10"
+                       pattern="[0-9]{10}" required
+                       autocomplete="tel-national"
+                       data-falta="Falta el teléfono celular."
+                       data-formato="El teléfono celular son diez dígitos, sin espacios ni guiones."
+                       aria-invalid={errores.telefono_celular ? 'true' : undefined}
+                       aria-describedby={errores.telefono_celular
+                         ? 'ayuda-telefono error-telefono_celular'
+                         : 'ayuda-telefono'}
+                       value={valores.telefono_celular ?? ''} />
+                <p class="ayuda" id="ayuda-telefono">Diez dígitos, sin espacios ni guiones.</p>
+                {errores.telefono_celular && <p class="error" id="error-telefono_celular">{errores.telefono_celular}</p>}
+              </div>
+              <div class="campo campo-ancho">
+                <label for="correo_electronico">Correo electrónico <span class="req" aria-hidden="true">*</span></label>
+                <input type="email" id="correo_electronico" name="correo_electronico"
+                       maxlength="150" required
+                       autocomplete="email"
+                       data-falta="Falta el correo electrónico."
+                       data-formato="Ese correo electrónico no parece válido."
+                       aria-invalid={errores.correo_electronico ? 'true' : undefined}
+                       aria-describedby={errores.correo_electronico ? 'error-correo_electronico' : undefined}
+                       value={valores.correo_electronico ?? ''} />
+                {errores.correo_electronico && <p class="error" id="error-correo_electronico">{errores.correo_electronico}</p>}
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="cuestionario">
+            <legend>Cuestionario de valoración</legend>
+
+            {[...PREGUNTAS_UNICAS, ...PREGUNTAS_MULTIPLES]
+              .sort((a, b) => a.numero - b.numero)
+              .map((pregunta) => (
+                <div data-grupo={pregunta.prefijo ?? ''}
+                     id={`p-${pregunta.prefijo ?? pregunta.campo}`}
+                     tabindex="-1"
+                     class:list={['pregunta', errores[pregunta.prefijo ?? pregunta.campo] && 'falta']}>
+                  <div class="cabecera">
+                    <span class="insignia">{pregunta.numero}</span>
+                    <div>
+                      <p class="enunciado">
+                        {pregunta.titulo} <span class="req" aria-hidden="true">*</span>
+                      </p>
+                      <p class="texto">{pregunta.enunciado}</p>
+                    </div>
+                  </div>
+
+                  <ul class="opciones">
+                    {pregunta.opciones.map(([clave, texto], i) => (
+                      <li>
+                        <label>
+                          {pregunta.prefijo ? (
+                            <input type="checkbox"
+                                   name={`${pregunta.prefijo}_${LETRAS_MULTIPLES[i]}`}
+                                   checked={encendida(`${pregunta.prefijo}_${LETRAS_MULTIPLES[i]}`)} />
+                          ) : (
+                            <input type="radio" name={pregunta.campo} value={clave} required
+                                   checked={marcada(pregunta.campo, clave)} />
+                          )}
+                          <span>{texto}</span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {pregunta.prefijo && (
+                    <>
+                      {/* Antes había aquí una advertencia permanente de que
+                          cierta opción no admitía compañía. Se retiró: el
+                          sistema ya lo impide solo, y avisar por adelantado de
+                          algo que no puede ocurrir es ruido.
+                          Lo que queda es un aviso que aparece EN EL MOMENTO en
+                          que las casillas se desmarcan, porque si no, quien no
+                          está mirando esa parte de la pantalla —o usa lector
+                          de pantalla— no se enteraría de que el sistema le
+                          cambió lo que había marcado. */}
+                      <p class="aviso-exclusion" role="status" hidden></p>
+                      <p class="error aviso-grupo" hidden>Elige al menos una opción.</p>
+                    </>
+                  )}
+                  {errores[pregunta.prefijo ?? pregunta.campo] && (
+                    <p class="error error-servidor">{errores[pregunta.prefijo ?? pregunta.campo]}</p>
+                  )}
+                </div>
+              ))}
+          </fieldset>
+
+          <div class="privacidad">
+            <label>
+              <input type="checkbox" id="acepta_aviso" name="acepta_aviso" required
+                     data-falta="Falta aceptar el aviso de privacidad."
+                     aria-invalid={errores.acepta_aviso ? 'true' : undefined}
+                     checked={encendida('acepta_aviso')} />
+              <span>
+                He leído el <a href="/aviso-de-privacidad" target="_blank" rel="noopener">aviso de
+                privacidad</a> y autorizo el tratamiento de mis datos personales para el
+                trámite de adopción. <span class="req" aria-hidden="true">*</span>
+              </span>
+            </label>
+            {errores.acepta_aviso && (
+              <p class="error" id="error-acepta_aviso">{errores.acepta_aviso}</p>
+            )}
+          </div>
+
+          <p class="cierre">{CIERRE}</p>
+
+          <button type="submit" class="boton boton-solido">Enviar solicitud</button>
+        </form>
+      </>
+    )}
   </div>
 </Base>
 
-<style>
-  .pendiente-etapa { padding-block: 22px 56px; max-width: 46rem; }
-  .regresar { margin: 0 0 26px; }
-  .regresar a {
-    font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--gris-claro); text-decoration: none;
-  }
-  .regresar a:hover { color: var(--guinda); }
+<script>
+  /* Tras un envío rechazado, el foco entra al resumen. Sin esto, quien usa
+     lector de pantalla se queda al principio del formulario sin enterarse de
+     que hubo un error, y quien usa el ratón tiene que buscarlo. */
+  (document.getElementById('resumen-errores')
+    ?? document.querySelector('.error-general'))?.focus?.();
 
-  h1 { color: var(--guinda); font-size: 1.75rem; margin: 0 0 24px; }
+  /* Las preguntas 2 y 8 son de opción múltiple y el navegador no sabe exigir
+     "al menos una" en un grupo de casillas: `required` en una casilla obliga a
+     marcar ESA, que no es la regla. Así que la regla se aplica aquí.
+     El servidor la vuelve a comprobar, y la base la impone además con una
+     restricción propia: son tres capas para la misma regla, a propósito.
+
+     De paso se aplica la exclusión de la opción G: al marcarla se apagan las
+     demás y al marcar cualquier otra se apaga la G. Es preferible impedir la
+     combinación imposible a regañar después de intentarla. */
+  for (const pregunta of document.querySelectorAll('.pregunta[data-grupo]:not([data-grupo=""])')) {
+    const casillas = [...pregunta.querySelectorAll('input[type="checkbox"]')];
+    if (casillas.length === 0) continue;
+
+    const excluyente = casillas[casillas.length - 1];   // la opción excluyente
+    const demas = casillas.slice(0, -1);
+    const aviso = pregunta.querySelector('.aviso-grupo');
+    const avisoExclusion = pregunta.querySelector('.aviso-exclusion');
+
+    /* Se dice qué pasó y por qué, con el texto de la opción, no con su letra:
+       quien llena el formulario no ve ninguna «G», ve una frase. */
+    function contar(mensaje) {
+      if (!avisoExclusion) return;
+      avisoExclusion.textContent = mensaje ?? '';
+      avisoExclusion.hidden = !mensaje;
+    }
+
+    const hayAlguna = () => casillas.some((c) => c.checked);
+
+    function mostrarFalta(falta) {
+      pregunta.classList.toggle('falta', falta);
+      if (aviso) aviso.hidden = !falta;
+      if (!falta) {
+        // También se retira el mensaje que trajo el servidor: si se quedara,
+        // la pregunta seguiría señalada después de responderla.
+        pregunta.querySelector('p.error-servidor')?.remove();
+        retirarDelResumen(pregunta.id);
+      }
+    }
+
+    const textoDe = (c) => c.closest('label').querySelector('span').textContent.trim();
+
+    excluyente.addEventListener('change', () => {
+      const habia = demas.filter((c) => c.checked);
+      if (excluyente.checked) {
+        demas.forEach((c) => { c.checked = false; });
+        contar(habia.length
+          ? `Se desmarcaron las demás opciones: «${textoDe(excluyente)}» va sola.`
+          : null);
+      } else {
+        contar(null);
+      }
+      mostrarFalta(!hayAlguna());
+    });
+
+    demas.forEach((casilla) => {
+      casilla.addEventListener('change', () => {
+        if (casilla.checked && excluyente.checked) {
+          excluyente.checked = false;
+          contar(`Se desmarcó «${textoDe(excluyente)}», que no va con otras.`);
+        } else if (casilla.checked) {
+          contar(null);
+        }
+        mostrarFalta(!hayAlguna());
+      });
+    });
+
+    pregunta.__completa = hayAlguna;
+    pregunta.__marcar = mostrarFalta;
+  }
+
+  /* Lo mismo para las de opción única: al elegir una opción, la tarjeta deja
+     de estar señalada y su renglón sale del resumen. */
+  for (const pregunta of document.querySelectorAll('.pregunta[data-grupo=""]')) {
+    for (const opcion of pregunta.querySelectorAll('input[type="radio"]')) {
+      opcion.addEventListener('change', () => {
+        pregunta.classList.remove('falta');
+        pregunta.querySelector('p.error-servidor')?.remove();
+        retirarDelResumen(pregunta.id);
+      });
+    }
+  }
+
+  /* Al enviar se arma el MISMO resumen que armaría el servidor.
+   *
+   * Antes, un campo vacío lo paraba el navegador con su burbuja amarilla: una
+   * falta a la vez, tapando el campo, sin quedar en la pantalla y sin que la
+   * lea un lector. Ahora el formulario lleva `novalidate`, se le pregunta al
+   * navegador qué campos están mal —que es lo que sabe hacer bien—, se añaden
+   * las preguntas de opción múltiple —que no sabe comprobar— y todo se
+   * presenta junto, arriba, con un enlace por falta.
+   *
+   * Los textos salen de `data-falta` y `data-formato` de cada campo, para que
+   * digan lo mismo que diría el servidor y en el mismo registro. */
+  const formulario = document.querySelector('form.solicitud');
+  const resumen = document.getElementById('resumen-errores');
+
+  function mensajeDe(campo) {
+    const vacio = !String(campo.value ?? '').trim() ||
+                  (campo.type === 'checkbox' && !campo.checked);
+    if (vacio) return campo.dataset.falta ?? 'Falta este dato.';
+    return campo.dataset.formato ?? campo.dataset.falta ?? 'Revisa este dato.';
+  }
+
+  /* ------------------------------------------------------------------
+     Mensaje bajo el campo.
+
+     El resumen de arriba sirve al enviar, pero llega tarde: quien acaba de
+     escribir un teléfono de ocho dígitos y pasa al siguiente campo necesita
+     enterarse ahí mismo, no al final. Así que el error se pinta debajo del
+     campo en cuanto el foco sale de él, y se borra en cuanto se corrige, sin
+     esperar a otro envío.
+
+     Cuándo NO se avisa: si el campo está vacío y la persona no lo ha tocado.
+     Ir tabulando por un formulario no es equivocarse, y regañar por adelantado
+     enseña a ignorar los avisos. Un campo vacío se reclama al enviar.
+     ------------------------------------------------------------------ */
+
+  function cajaDe(campo) {
+    return campo.closest('.campo, .privacidad');
+  }
+
+  function describir(campo, idError) {
+    // Se conserva lo que el marcado ya decía —la ayuda del teléfono, por
+    // ejemplo— y se le suma o se le quita el mensaje de error.
+    if (campo.dataset.describeBase === undefined) {
+      campo.dataset.describeBase = campo.getAttribute('aria-describedby') ?? '';
+    }
+    const base = campo.dataset.describeBase.split(' ').filter(Boolean)
+      .filter((x) => x !== idError);
+    const todo = idError ? [...base, idError] : base;
+    if (todo.length) campo.setAttribute('aria-describedby', todo.join(' '));
+    else campo.removeAttribute('aria-describedby');
+  }
+
+  function pintarError(campo, mensaje) {
+    const caja = cajaDe(campo);
+    if (!caja) return;
+
+    const id = `error-${campo.id || campo.name}`;
+    let parrafo = caja.querySelector(`p.error[id="${id}"]`);
+
+    if (!mensaje) {
+      parrafo?.remove();
+      campo.setAttribute('aria-invalid', 'false');
+      describir(campo, null);
+      retirarDelResumen(campo.id);
+      return;
+    }
+
+    if (!parrafo) {
+      parrafo = document.createElement('p');
+      parrafo.className = 'error';
+      parrafo.id = id;
+      caja.append(parrafo);
+    }
+    parrafo.textContent = mensaje;
+    campo.setAttribute('aria-invalid', 'true');
+    describir(campo, id);
+  }
+
+  function revisar(campo, { soloSiTocado = false } = {}) {
+    const vacio = campo.type === 'checkbox'
+      ? !campo.checked
+      : !String(campo.value ?? '').trim();
+
+    if (soloSiTocado && vacio && !campo.dataset.tocado) {
+      pintarError(campo, null);
+      return true;
+    }
+    const bien = campo.checkValidity();
+    pintarError(campo, bien ? null : mensajeDe(campo));
+    return bien;
+  }
+
+  for (const campo of document.querySelectorAll('[data-falta]')) {
+    campo.addEventListener('input', () => { campo.dataset.tocado = '1'; });
+
+    // Al salir del campo: es el momento en que la persona da por terminado
+    // ese dato, y por tanto el momento de decirle si algo no cuadra.
+    campo.addEventListener('blur', () => revisar(campo, { soloSiTocado: true }));
+
+    // Una lista se resuelve al elegir, no al salir.
+    if (campo.tagName === 'SELECT' || campo.type === 'checkbox') {
+      campo.addEventListener('change', () => {
+        campo.dataset.tocado = '1';
+        revisar(campo);
+      });
+    }
+
+    // Mientras se corrige, el aviso desaparece en cuanto deja de ser cierto.
+    // Nunca aparece uno nuevo escribiendo: sería regañar a media palabra.
+    campo.addEventListener('input', () => {
+      if (campo.checkValidity()) pintarError(campo, null);
+    });
+  }
+
+  /* Un renglón del resumen deja de tener sentido en cuanto su campo queda
+     bien. Si se quedara, el formulario seguiría reclamando algo ya resuelto. */
+  function retirarDelResumen(ancla) {
+    if (!resumen || resumen.hidden || !ancla) return;
+    resumen.querySelector(`li[data-para="${ancla}"]`)?.remove();
+
+    const quedan = resumen.querySelectorAll('li').length;
+    if (quedan === 0) {
+      resumen.hidden = true;
+      resumen.textContent = '';
+      return;
+    }
+    const titulo = resumen.querySelector('.titulo-resumen');
+    if (titulo) {
+      titulo.innerHTML = '<strong>La solicitud no se envió.</strong> ' +
+        (quedan === 1
+          ? 'Falta corregir un dato:'
+          : `Faltan por corregir ${quedan} datos:`);
+    }
+  }
+
+  function pintarResumen(fallas) {
+    if (!resumen) return;
+
+    if (fallas.length === 0) {
+      resumen.hidden = true;
+      resumen.textContent = '';
+      return;
+    }
+
+    const titulo = document.createElement('p');
+    titulo.className = 'titulo-resumen';
+    titulo.innerHTML = '<strong>La solicitud no se envió.</strong> ' +
+      (fallas.length === 1
+        ? 'Falta corregir un dato:'
+        : `Faltan por corregir ${fallas.length} datos:`);
+
+    const lista = document.createElement('ul');
+    for (const falla of fallas) {
+      const renglon = document.createElement('li');
+      renglon.dataset.para = falla.ancla;
+      const enlace = document.createElement('a');
+      enlace.href = `#${falla.ancla}`;
+      enlace.textContent = falla.mensaje;
+      renglon.append(enlace);
+      lista.append(renglon);
+    }
+
+    resumen.textContent = '';
+    resumen.append(titulo, lista);
+    resumen.hidden = false;
+    resumen.focus();
+  }
+
+  formulario?.addEventListener('submit', (evento) => {
+    const fallas = [];
+
+    /* Se recorre la pantalla en su orden, no el orden del DOM por tipo: la
+       lista tiene que leerse como se baja por el formulario. */
+    const revisables = formulario.querySelectorAll('[data-falta], .pregunta');
+
+    for (const nodo of revisables) {
+      if (nodo.classList.contains('pregunta')) {
+        /* Dos clases de pregunta. Las de opción múltiple llevan su propia
+           comprobación —«al menos una»—, montada arriba. Las de opción única
+           son un grupo de radios: basta con que ninguno esté marcado. */
+        const esMultiple = Boolean(nodo.dataset.grupo);
+        const falta = esMultiple
+          ? Boolean(nodo.__completa) && !nodo.__completa()
+          : !nodo.querySelector('input[type="radio"]:checked');
+
+        if (esMultiple) nodo.__marcar?.(falta);
+        else nodo.classList.toggle('falta', falta);
+
+        if (falta) {
+          /* El renglón del resumen NOMBRA la pregunta, no repite el mismo
+             reproche ocho veces: el resumen existe para llevar al dato que
+             falló, y once enlaces idénticos no llevan a ninguna parte. El
+             número y el título se leen de la propia tarjeta, así que dicen
+             exactamente lo mismo que el servidor. */
+          const numero = nodo.querySelector('.insignia')?.textContent.trim() ?? '';
+          const titulo = (nodo.querySelector('.enunciado')?.textContent ?? '')
+            .replace('*', '').replace(/\s+/g, ' ').trim();
+
+          fallas.push({
+            ancla: nodo.id,
+            mensaje: titulo
+              ? `Pregunta ${numero}: ${titulo}`
+              : (esMultiple ? 'Elige al menos una opción.' : 'Falta responder esta pregunta.'),
+          });
+        }
+        continue;
+      }
+
+      // Al enviar sí se reclama lo vacío, lo haya tocado o no.
+      if (!revisar(nodo)) fallas.push({ ancla: nodo.id, mensaje: mensajeDe(nodo) });
+    }
+
+    if (fallas.length > 0) {
+      evento.preventDefault();
+      pintarResumen(fallas);
+    }
+  });
+
+</script>
+
+<style>
+  .pagina { padding-block: 40px 64px; max-width: var(--ancho-lectura); }
+
+  h1 { color: var(--principal); font-size: 1.75rem; margin: 0 0 24px; }
+  h2 { font-size: 1.125rem; color: var(--texto); margin: 0 0 10px; }
 
   .resumen {
-    border: 1px solid var(--linea); border-radius: 10px;
-    padding: 18px 20px; margin-bottom: 28px; background: var(--crema);
+    display: grid; grid-template-columns: 110px 1fr; gap: 16px; align-items: center;
+    border: 1px solid var(--linea); border-left: 4px solid var(--dorado);
+    border-radius: 8px; padding: 16px 18px; margin-bottom: 24px; background: var(--crema);
   }
-  .resumen .rotulo {
+  .retrato {
+    width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: top center;
+    border-radius: 6px; background: var(--blanco); display: block;
+  }
+  .rotulo {
     font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase;
     color: var(--dorado-texto); margin: 0;
   }
-  .resumen .nombre { font-family: var(--titulos); font-size: 1.25rem; font-weight: 700; margin: 4px 0 2px; }
-  .resumen .atributos { margin: 0; color: var(--gris); font-size: 0.9375rem; }
-
-  .pendiente {
-    border-left: 3px solid var(--dorado); padding: 4px 0 4px 18px; color: var(--gris);
+  .nombre {
+    font-family: var(--titulos); font-size: 1.25rem; font-weight: 700;
+    color: var(--texto); margin: 4px 0 2px;
   }
-  .pendiente ol { padding-left: 20px; }
-  .pendiente li { margin-bottom: 6px; }
+  .atributos { margin: 0; color: var(--gris); font-size: 0.9375rem; }
+
+  .identificacion p { color: var(--gris); }
+  .acciones { margin-top: 20px; }
+
+  .quien {
+    border: 1px solid var(--linea); border-radius: 8px;
+    padding: 16px 18px; margin-bottom: 24px;
+  }
+  .persona {
+    font-family: var(--titulos); font-size: 1.0625rem; font-weight: 700;
+    margin: 4px 0 0; color: var(--texto);
+  }
+  .curp { margin: 2px 0 0; font-size: 0.875rem; color: var(--gris); font-family: ui-monospace, monospace; }
+  .explica { margin: 8px 0 0; font-size: 0.8125rem; color: var(--gris-claro); }
+  .marca { margin: 8px 0 0; font-size: 0.8125rem; color: var(--principal); font-weight: 500; }
+  .quien form { margin: 12px 0 0; }
+  .salir {
+    background: none; border: 0; padding: 0; cursor: pointer;
+    font-family: var(--cuerpo); font-size: 0.8125rem; color: var(--principal);
+    text-decoration: underline;
+  }
+
+  .aviso {
+    border-left: 3px solid var(--dorado); background: var(--crema);
+    padding: 14px 16px; color: var(--gris);
+  }
+  .aviso p { margin: 0 0 8px; }
+  .aviso p:last-child { margin-bottom: 0; }
+
+  .error-general {
+    border-left: 3px solid var(--alto); background: var(--crema);
+    padding: 12px 14px; margin: 0 0 20px; color: var(--alto);
+  }
+  .error { color: var(--alto); font-size: 0.8125rem; margin: 5px 0 0; }
+
+  /* La tarjeta de la pregunta recibe el foco cuando se llega desde el
+     resumen, y deja aire arriba para que el enunciado no quede pegado al
+     borde de la pantalla. */
+  .pregunta { scroll-margin-top: 16px; }
+  .pregunta:focus { outline: 3px solid var(--principal); outline-offset: 3px; }
+  .campo input:focus { scroll-margin-top: 16px; }
+
+  /* Cuatro bloques seguidos —domicilio, contacto, cuestionario y aviso— se
+     leían como una sola cosa larga. 30 px de separación y un poco más de aire
+     por dentro. */
+  fieldset {
+    border: 1px solid var(--linea); border-radius: 8px;
+    padding: 20px 18px 24px; margin: 0 0 30px;
+  }
+  legend {
+    font-size: 0.8125rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--gris); padding: 0 8px; font-weight: 700;
+  }
+  .ayuda-bloque { margin: 0 0 16px; font-size: 0.875rem; color: var(--gris); }
+  .ayuda { margin: 5px 0 0; font-size: 0.8125rem; color: var(--gris-claro); }
+
+  .filas { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .filas + .filas { margin-top: 14px; }
+  .campo-ancho { grid-column: span 2; min-width: 0; }
+  .campo label { display: block; font-size: 0.8125rem; font-weight: 500; margin-bottom: 5px; }
+  .opcional { font-weight: 400; color: var(--gris-claro); }
+  .campo input, .campo select {
+    width: 100%; padding: 10px 12px; font-family: var(--cuerpo); font-size: 0.9375rem;
+    border: 1px solid var(--linea-campo); border-radius: 6px; background: var(--blanco);
+    color: var(--texto);
+  }
+  /* Un campo señalado se ve señalado, no sólo se anuncia. */
+  .campo [aria-invalid="true"] { border-color: var(--alto); border-width: 2px; }
+
+  /* --- Cuestionario ------------------------------------------------------
+     Cada pregunta es una tarjeta con su número visible. La opción marcada se
+     destaca con borde y fondo, no sólo con el punto del control: en teléfono
+     el control es pequeño y hace falta que se vea de un vistazo qué se eligió. */
+  .cuestionario { padding-top: 8px; }
+
+  .pregunta {
+    border: 1px solid var(--linea); border-radius: 10px;
+    padding: 18px; margin-bottom: 16px; background: var(--blanco);
+  }
+  .pregunta:last-child { margin-bottom: 0; }
+
+  .cabecera { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; }
+  .insignia {
+    display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--principal); color: var(--blanco);
+    font-family: var(--titulos); font-weight: 700; font-size: 0.875rem; line-height: 1;
+  }
+  /* --- Tres niveles, tres aspectos distintos --------------------------------
+     El cuestionario tenía el tema de la pregunta, la pregunta y las respuestas
+     casi del mismo tamaño y peso: el ojo no distinguía qué se preguntaba de
+     qué se podía contestar, y había que leerlo todo para entenderlo.
+
+       TEMA        versalitas chicas en dorado   «de qué va esto»
+       PREGUNTA    18 px, peso medio, tinta      lo que hay que contestar
+       RESPUESTAS  15 px, normal, gris oscuro    lo que se puede elegir
+
+     El tema baja de rango a propósito: no es un encabezado, es una etiqueta.
+     Lo que tiene que dominar es la pregunta, porque es lo único que exige algo
+     de quien llena el formulario. */
+  .enunciado {
+    margin: 5px 0 0; font-size: 0.6875rem; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--dorado-texto);
+  }
+  .enunciado .req { color: var(--alto); }
+  .texto {
+    margin: 5px 0 0; color: var(--texto); font-size: 1.0625rem;
+    font-weight: 500; line-height: 1.45;
+  }
+  /* Aparece sólo en el momento en que el sistema desmarca algo. No es un
+     error: es el sistema contando lo que acaba de hacer. */
+  .aviso-exclusion {
+    margin: 10px 0 0; font-size: 0.8125rem; color: var(--gris);
+    background: var(--atencion-fondo); border-left: 3px solid var(--atencion);
+    padding: 8px 10px;
+  }
+  .aviso-exclusion[hidden] { display: none; }
+
+  /* El margen de arriba lo daba la instrucción que se retiró: sin él, las
+     opciones quedaban pegadas al enunciado. */
+  .opciones { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 8px; }
+  /* Las respuestas van un punto por debajo de la pregunta: se siguen leyendo
+     con holgura —5.9:1 de contraste, muy por encima del 4.5 que pide la
+     norma— pero ya no compiten con ella. */
+  .opciones label {
+    display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;
+    cursor: pointer; line-height: 1.5; font-size: 0.9375rem; color: var(--gris);
+    border: 1px solid var(--linea-campo); border-radius: 8px; padding: 11px 13px;
+    transition: border-color .12s ease, background .12s ease;
+  }
+  /* La elegida sí se pone en tinta plena: entre cuatro opciones grises, la
+     que está marcada tiene que distinguirse por algo más que el borde. */
+  .opciones label:has(input:checked) { color: var(--texto); font-weight: 500; }
+  .opciones label:hover { border-color: var(--dorado); background: var(--crema); }
+  .opciones label:has(input:checked) {
+    border-color: var(--principal); background: var(--crema);
+    box-shadow: inset 3px 0 0 var(--principal);
+  }
+  .opciones { margin-top: 16px; }
+  .opciones label:has(input:focus-visible) { outline: 3px solid var(--principal); outline-offset: 2px; }
+  .opciones input { margin-top: 3px; accent-color: var(--principal); width: 18px; height: 18px; }
+
+  /* Pregunta señalada por el servidor o por el navegador. */
+  .pregunta.falta { border-color: var(--alto); }
+
+  .privacidad {
+    border: 1px solid var(--linea); border-left: 4px solid var(--principal);
+    border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;
+  }
+  .privacidad label {
+    display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start;
+    cursor: pointer;
+  }
+  .privacidad input { margin-top: 4px; accent-color: var(--principal); width: 18px; height: 18px; }
+
+  .cierre {
+    background: var(--crema); border-radius: 8px; padding: 14px 16px;
+    color: var(--gris); font-size: 0.9375rem; margin: 0 0 24px;
+  }
+
+  .solicitud > .boton { width: 100%; }
+  @media (min-width: 640px) { .solicitud > .boton { width: auto; min-width: 16rem; } }
 </style>

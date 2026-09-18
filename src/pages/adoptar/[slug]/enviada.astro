@@ -1,0 +1,106 @@
+---
+/* Acuse de la solicitud enviada.
+ *
+ * Sólo la ve quien la envió: se comprueba que el folio pertenezca a la
+ * persona identificada en esta sesión. Sin esa comprobación, cualquiera que
+ * probara folios consecutivos —2026-000001, 2026-000002…— vería datos de
+ * terceros.
+ */
+export const prerender = false;
+
+import Base from '../../../layouts/Base.astro';
+import { leerSolicitante } from '../../../servidor/solicitante.js';
+import { obtenerPorFolio } from '../../../servidor/solicitudes.js';
+
+const { slug } = Astro.params;
+const folio = Astro.url.searchParams.get('folio');
+
+const solicitante = await leerSolicitante(Astro.session);
+if (!solicitante) return Astro.redirect(`/adoptar/${slug}`);
+
+/* El acuse no consulta la ficha: se arma con la instantánea guardada en la
+   solicitud. Así sigue siendo válido aunque después cambie el registro —o
+   aunque salga del portal—, que es justo lo que se espera de un acuse. */
+const solicitud = folio ? await obtenerPorFolio(folio, solicitante.sub) : null;
+if (!solicitud) return Astro.redirect(`/adoptar/${slug}`);
+
+const fecha = new Date(solicitud.recibida_en).toLocaleString('es-MX', {
+  dateStyle: 'long', timeStyle: 'short',
+});
+---
+<Base titulo="Solicitud enviada">
+  <div class="contenedor pagina">
+    {/* Esta es la pantalla que la persona guarda o imprime: el programa
+        debe ir identificado en ella. */}
+    <img class="marca" src="/imagenes/marca/amar-es-adoptar.svg" alt="Amar es Adoptar"
+         width="700" height="283" />
+    <p class="antetitulo">Solicitud recibida</p>
+    <h1>Gracias. Tu solicitud quedó registrada.</h1>
+
+    <div class="acuse">
+      <p class="rotulo">Folio de tu solicitud</p>
+      <p class="folio">{solicitud.folio}</p>
+      <p class="detalle">Recibida el {fecha}</p>
+      <p class="detalle">Ser sintiente: <strong>{solicitud.snap_nombre}</strong></p>
+    </div>
+
+    {solicitud.es_ficticio === 1 && (
+      <p class="marca">
+        Solicitud de prueba. Se generó con una identidad simulada y queda marcada como
+        ficticia en la base de datos.
+      </p>
+    )}
+
+    <div class="siguiente">
+      <h2>¿Qué sigue?</h2>
+      <p>
+        El personal del centro revisará tu solicitud y se comunicará contigo al correo o
+        al teléfono que registraste. Conserva tu folio: es el dato con el que podemos
+        localizar tu trámite.
+      </p>
+      <p>
+        Completar este formulario no garantiza la adopción, pero nos permite acompañarte de
+        forma cercana y responsable durante el proceso.
+      </p>
+    </div>
+
+    <p class="acciones">
+      <a class="boton boton-linea" href="/seres-sintientes">Volver al catálogo</a>
+    </p>
+  </div>
+</Base>
+
+<style>
+  .pagina { padding-block: 48px 72px; max-width: 42rem; text-align: center; }
+  .marca { width: 220px; height: auto; margin: 0 auto 22px; display: block; }
+
+  .antetitulo {
+    font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--dorado-texto); margin: 0 0 14px;
+  }
+  h1 { color: var(--principal); font-size: 1.625rem; margin: 0 0 28px; }
+  h2 { font-size: 1.0625rem; color: var(--texto); margin: 0 0 8px; }
+
+  .acuse {
+    border: 1px solid var(--linea); border-top: 4px solid var(--dorado);
+    border-radius: 8px; padding: 22px 18px; background: var(--crema); margin-bottom: 24px;
+  }
+  .rotulo {
+    font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--dorado-texto); margin: 0;
+  }
+  .folio {
+    font-family: ui-monospace, monospace; font-size: 1.75rem; font-weight: 700;
+    color: var(--principal); margin: 6px 0 12px; letter-spacing: 0.04em;
+  }
+  .detalle { margin: 2px 0; color: var(--gris); font-size: 0.9375rem; }
+
+  .marca {
+    border-left: 3px solid var(--principal); background: var(--blanco);
+    padding: 12px 14px; color: var(--principal); font-size: 0.875rem;
+    text-align: left; margin: 0 0 24px;
+  }
+
+  .siguiente { text-align: left; color: var(--gris); margin-bottom: 28px; }
+  .siguiente p { margin: 0 0 10px; }
+</style>

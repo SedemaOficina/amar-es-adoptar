@@ -3,66 +3,98 @@
    El contenido es el texto institucional vigente de la Secretaría,
    reorganizado en secciones con anclaje propio para que la banda de
    navegación lleve a cada una. */
+export const prerender = false;
+
 import Base from '../layouts/Base.astro';
+import { vitrina } from '../servidor/ejemplares-publico.js';
+import { urlFoto } from '../servidor/fotografias.js';
+
+/* Los que se muestran en la portada. Salen de la base, igual que el catálogo:
+ * una sola fuente.
+ *
+ * Sólo los que admiten solicitud —los que están en proceso ya tienen quien los
+ * espera— y con tope de doce: la portada invita, el catálogo completo está a
+ * un clic.
+ *
+ * Son los doce que llevan MÁS TIEMPO esperando, no los más recientes: la
+ * portada es el escaparate y le toca a quien más lo necesita. El porqué está
+ * en `vitrina()`, en servidor/ejemplares-publico.js. */
+const enVitrina = await vitrina(12);
+
+/* Los iconos de la marca, entregados por Diseño. Cada punto lleva el suyo:
+   sustituyen a la palomita y al punto dorado que había antes, que eran
+   adornos iguales para todo. Un icono distinto por idea ayuda a recorrer la
+   lista con la vista y a recordar de qué trataba cada punto.
+
+   Son decorativos: el texto de al lado dice lo mismo, así que van con
+   `alt=""` y no se anuncian al lector de pantalla. Repetir el texto en el
+   texto alternativo obligaría a oírlo dos veces. */
+const ICONOS = '/imagenes/iconos';
 
 const beneficios = [
-  'Reduces el abandono, el maltrato y la sobrepoblación canina',
-  'Proteges la vida y el medio ambiente',
-  'Construyes una sociedad más solidaria',
-  'Mejoras tu ánimo y bienestar',
+  { icono: '11-escudo-huella',  texto: 'Reduces el abandono, el maltrato y la sobrepoblación canina' },
+  { icono: '02-corazon-huella', texto: 'Proteges la vida y el medio ambiente' },
+  { icono: '21-huellas',        texto: 'Construyes una sociedad más solidaria' },
+  { icono: '20-corazon',        texto: 'Mejoras tu ánimo y bienestar' },
 ];
 
 const preguntasEntorno = [
-  '¿Tienes tiempo y disponibilidad diaria?',
-  '¿Tu espacio es adecuado para su tamaño y energía?',
-  '¿Tu estilo de vida le brindará compañía y estabilidad?',
-  '¿Las personas y animales con quienes vivirá están preparados?',
+  { icono: '26-pelota-hueso',  texto: '¿Tienes tiempo y disponibilidad diaria?' },
+  { icono: '23-casa-perro',    texto: '¿Tu espacio es adecuado para su tamaño y energía?' },
+  { icono: '13-perro-corazon', texto: '¿Tu estilo de vida le brindará compañía y estabilidad?' },
+  { icono: '12-gato-corazon',  texto: '¿Las personas y animales con quienes vivirá están preparados?' },
 ];
 
 const preguntasCompromiso = [
-  '¿Puedes cubrir gastos de alimentación y atención veterinaria?',
-  '¿Estás dispuesto a educarlo y atender sus necesidades emocionales?',
-  '¿Tendrás paciencia para ayudarlo a recuperar la confianza?',
-  '¿Estás listo para asumir un compromiso a largo plazo?',
+  { icono: '06-maletin-veterinario', texto: '¿Puedes cubrir gastos de alimentación y atención veterinaria?' },
+  { icono: '02-corazon-huella',      texto: '¿Estás dispuesto a educarlo y atender sus necesidades emocionales?' },
+  { icono: '20-corazon',             texto: '¿Tendrás paciencia para ayudarlo a recuperar la confianza?' },
+  { icono: '11-escudo-huella',       texto: '¿Estás listo para asumir un compromiso a largo plazo?' },
 ];
 
 const preparativos = [
-  'Un espacio seguro y cómodo para que descanse',
-  'Una cama adecuada a su tamaño',
-  'Platos para agua y alimento',
-  'Alimento adecuado para su edad y tamaño',
-  'Collar o arnés, correa e identificación',
-  'Una transportadora para traslados seguros',
+  { icono: '23-casa-perro',    texto: 'Un espacio seguro y cómodo para que descanse' },
+  { icono: '25-perro',         texto: 'Una cama adecuada a su tamaño' },
+  { icono: '08-plato-alimento', texto: 'Platos para agua y alimento' },
+  { icono: '15-bolsa-alimento', texto: 'Alimento adecuado para su edad y tamaño' },
+  { icono: '22-collar-placa',  texto: 'Collar o arnés, correa e identificación' },
+  { icono: '28-correa',        texto: 'Una transportadora para traslados seguros' },
 ];
 
 const dominios = [
-  { nombre: 'Nutrición', texto: 'Agua fresca y alimento adecuado a su edad, tamaño y necesidades. Observar su apetito y peso te ayuda a notar a tiempo cuando algo cambia.' },
-  { nombre: 'Ambiente', texto: 'Un lugar limpio y cómodo, protegido del frío, el calor y el ruido, donde pueda moverse y descansar. Así reconocerá su nuevo hogar como un sitio seguro.' },
-  { nombre: 'Salud', texto: 'Atención veterinaria, esterilización, vacunación y desparasitación como parte de una tenencia responsable. Sus cambios de energía o apetito pueden avisarte a tiempo.' },
-  { nombre: 'Interacciones', texto: 'Pasear, oler, jugar y convivir contigo son formas de expresarse. Cada perro es distinto: algunos son muy sociables y otros necesitan más tiempo y espacio.' },
-  { nombre: 'Estado mental', texto: 'Aquí se conecta todo lo demás. Una buena vida física y las experiencias positivas le dan seguridad, confianza y disfrute, no sólo ausencia de malestar.' },
+  { icono: '08-plato-alimento', nombre: 'Nutrición', texto: 'Agua fresca y alimento adecuado a su edad, tamaño y necesidades. Observar su apetito y peso te ayuda a notar a tiempo cuando algo cambia.' },
+  { icono: '23-casa-perro', nombre: 'Ambiente', texto: 'Un lugar limpio y cómodo, protegido del frío, el calor y el ruido, donde pueda moverse y descansar. Así reconocerá su nuevo hogar como un sitio seguro.' },
+  { icono: '06-maletin-veterinario', nombre: 'Salud', texto: 'Atención veterinaria, esterilización, vacunación y desparasitación como parte de una tenencia responsable. Sus cambios de energía o apetito pueden avisarte a tiempo.' },
+  { icono: '26-pelota-hueso', nombre: 'Interacciones', texto: 'Pasear, oler, jugar y convivir contigo son formas de expresarse. Cada perro es distinto: algunos son muy sociables y otros necesitan más tiempo y espacio.' },
+  { icono: '20-corazon', nombre: 'Estado mental', texto: 'Aquí se conecta todo lo demás. Una buena vida física y las experiencias positivas le dan seguridad, confianza y disfrute, no sólo ausencia de malestar.' },
 ];
 
 const tutela = [
-  { titulo: 'Compromiso de por vida', texto: 'La adopción no tiene fecha de término: acompaña al animal en todas sus etapas.' },
-  { titulo: 'Cuidado diario y tu tiempo', texto: 'Alimento, higiene, paseos y convivencia forman parte de la rutina de todos los días.' },
-  { titulo: 'Responsabilidad fuera de casa', texto: 'Correa, identificación y recoger sus desechos son parte de la convivencia en la ciudad.' },
-  { titulo: 'Estar preparado ante imprevistos', texto: 'Una enfermedad, una mudanza o un cambio de trabajo no deberían poner en riesgo su hogar.' },
+  { icono: '11-escudo-huella', titulo: 'Compromiso de por vida', texto: 'La adopción no tiene fecha de término: acompaña al animal en todas sus etapas.' },
+  { icono: '24-cepillo', titulo: 'Cuidado diario y tu tiempo', texto: 'Alimento, higiene, paseos y convivencia forman parte de la rutina de todos los días.' },
+  { icono: '28-correa', titulo: 'Responsabilidad fuera de casa', texto: 'Correa, identificación y recoger sus desechos son parte de la convivencia en la ciudad.' },
+  { icono: '19-botiquin', titulo: 'Estar preparado ante imprevistos', texto: 'Una enfermedad, una mudanza o un cambio de trabajo no deberían poner en riesgo su hogar.' },
 ];
 
 const autoevaluacion = [
-  '¿Tengo tiempo para compartir con él?',
-  '¿Puedo cubrir su atención veterinaria?',
-  '¿Mi hogar y estilo de vida son adecuados?',
-  '¿Estoy preparado para su vejez o enfermedad?',
-  '¿Estoy dispuesto a adaptar aspectos de mi vida?',
+  { icono: '26-pelota-hueso',        texto: '¿Tengo tiempo para compartir con él?' },
+  { icono: '06-maletin-veterinario', texto: '¿Puedo cubrir su atención veterinaria?' },
+  { icono: '23-casa-perro',          texto: '¿Mi hogar y estilo de vida son adecuados?' },
+  { icono: '19-botiquin',            texto: '¿Estoy preparado para su vejez o enfermedad?' },
+  { icono: '20-corazon',             texto: '¿Estoy dispuesto a adaptar aspectos de mi vida?' },
 ];
 ---
 <Base titulo="Amar es Adoptar">
   <section class="portada">
     <div class="contenedor">
       <p class="antetitulo">Seres sintientes rescatados en la Ciudad de México</p>
-      <h1>Amar es adoptar</h1>
+      {/* El logotipo hace de título. Va dentro del <h1> y con texto
+          alternativo, para que siga siendo el encabezado de la página tanto
+          para un buscador como para un lector de pantalla. */}
+      <h1 class="con-logotipo">
+        <img src="/imagenes/marca/amar-es-adoptar.svg" alt="Amar es Adoptar"
+             width="700" height="283" />
+      </h1>
       <p class="entrada">
         Los animales de compañía son seres sintientes que merecen bienestar y tutela
         responsable. Garantizamos un proceso de adopción responsable para su bienestar.
@@ -80,6 +112,47 @@ const autoevaluacion = [
     </div>
   </section>
 
+  {enVitrina.length > 0 && (
+    <section class="vitrina" aria-labelledby="titulo-vitrina">
+      <div class="contenedor">
+        <div class="cabecera-vitrina">
+          <p class="antetitulo izq">Te están esperando</p>
+          <h2 id="titulo-vitrina">Conócelos</h2>
+        </div>
+
+        <div class="marco">
+          <button type="button" class="flecha izquierda" data-mover="-1"
+                  aria-label="Ver los anteriores" hidden>‹</button>
+
+          <ul class="tira" tabindex="0" aria-label="Seres sintientes en adopción">
+            {enVitrina.map((e) => (
+              <li>
+                <a href={`/seres-sintientes/${e.slug}`}>
+                  <img src={urlFoto(e.portada)}
+                       alt={e.portada
+                         ? (e.portada_alterno ?? `Fotografía de ${e.nombre}`)
+                         : `${e.nombre} todavía no tiene fotografía`}
+                       width="480" height="360" loading="lazy" />
+                  <span class="nombre">{e.nombre}</span>
+                  <span class="datos">
+                    {e.edad_etiqueta} · {e.sexo_etiqueta} · {e.talla_etiqueta}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+
+          <button type="button" class="flecha derecha" data-mover="1"
+                  aria-label="Ver los siguientes" hidden>›</button>
+        </div>
+
+        <p class="todos">
+          <a class="boton boton-linea" href="/seres-sintientes">Ver el catálogo completo</a>
+        </p>
+      </div>
+    </section>
+  )}
+
   <section id="por-que-adoptar" class="seccion">
     <div class="contenedor">
       <h2>¿Por qué adoptar?</h2>
@@ -91,7 +164,9 @@ const autoevaluacion = [
 
       <p class="subrayado">Además, cuando adoptas…</p>
       <ul class="lista-palomas">
-        {beneficios.map((b) => <li>{b}</li>)}
+        {beneficios.map((b) => (
+          <li><img class="icono" src={`${ICONOS}/${b.icono}.svg`} alt="" width="34" height="39" loading="lazy" /><span>{b.texto}</span></li>
+        ))}
       </ul>
     </div>
   </section>
@@ -108,7 +183,9 @@ const autoevaluacion = [
             ofrecerle el cuidado que necesita.
           </p>
           <ul class="lista-preguntas">
-            {preguntasEntorno.map((p) => <li>{p}</li>)}
+            {preguntasEntorno.map((p) => (
+              <li><img class="icono" src={`${ICONOS}/${p.icono}.svg`} alt="" width="34" height="39" loading="lazy" /><span>{p.texto}</span></li>
+            ))}
           </ul>
         </div>
 
@@ -119,7 +196,9 @@ const autoevaluacion = [
             paciencia y acompañamiento.
           </p>
           <ul class="lista-preguntas">
-            {preguntasCompromiso.map((p) => <li>{p}</li>)}
+            {preguntasCompromiso.map((p) => (
+              <li><img class="icono" src={`${ICONOS}/${p.icono}.svg`} alt="" width="34" height="39" loading="lazy" /><span>{p.texto}</span></li>
+            ))}
           </ul>
         </div>
       </div>
@@ -139,7 +218,9 @@ const autoevaluacion = [
       <h2>¿Qué debes tener listo?</h2>
       <p class="parrafo">Preparar tu hogar es parte del proceso de adopción responsable.</p>
       <ul class="lista-palomas dos">
-        {preparativos.map((p) => <li>{p}</li>)}
+        {preparativos.map((p) => (
+          <li><img class="icono" src={`${ICONOS}/${p.icono}.svg`} alt="" width="34" height="39" loading="lazy" /><span>{p.texto}</span></li>
+        ))}
       </ul>
     </div>
   </section>
@@ -156,7 +237,11 @@ const autoevaluacion = [
       <ol class="dominios">
         {dominios.map((d, i) => (
           <li>
-            <span class="numero" aria-hidden="true">{i + 1}</span>
+            <p class="cabeza-dominio">
+              <span class="numero" aria-hidden="true">{i + 1}</span>
+              <img class="icono-grande" src={`${ICONOS}/${d.icono}.svg`} alt=""
+                   width="52" height="59" loading="lazy" />
+            </p>
             <h3>{d.nombre}</h3>
             <p>{d.texto}</p>
           </li>
@@ -182,6 +267,8 @@ const autoevaluacion = [
       <div class="tutela">
         {tutela.map((t) => (
           <div class="bloque">
+            <img class="icono-grande" src={`${ICONOS}/${t.icono}.svg`} alt=""
+                 width="44" height="50" loading="lazy" />
             <h3>{t.titulo}</h3>
             <p>{t.texto}</p>
           </div>
@@ -190,7 +277,9 @@ const autoevaluacion = [
 
       <h3 class="pregunta-final">Antes de adoptar, pregúntate</h3>
       <ul class="lista-preguntas dos">
-        {autoevaluacion.map((p) => <li>{p}</li>)}
+        {autoevaluacion.map((p) => (
+          <li><img class="icono" src={`${ICONOS}/${p.icono}.svg`} alt="" width="34" height="39" loading="lazy" /><span>{p.texto}</span></li>
+        ))}
       </ul>
     </div>
   </section>
@@ -208,17 +297,60 @@ const autoevaluacion = [
   </section>
 </Base>
 
+<script>
+  /* La tira se desplaza con el dedo, con la rueda y con las flechas del
+     teclado por sí sola: es scroll, no un artefacto. Este guion sólo agrega
+     los botones para quien usa ratón, y los esconde cuando no hacen falta
+     —porque todo cabe en pantalla, o porque ya se llegó al extremo—.
+     Si el navegador no ejecuta JavaScript, la tira sigue funcionando. */
+  const tira = document.querySelector('.vitrina .tira');
+  const flechas = document.querySelectorAll('.vitrina .flecha');
+
+  if (tira && flechas.length) {
+    const actualizar = () => {
+      const sobra = tira.scrollWidth - tira.clientWidth > 4;
+      const inicio = tira.scrollLeft <= 4;
+      const fin = tira.scrollLeft >= tira.scrollWidth - tira.clientWidth - 4;
+      for (const f of flechas) {
+        const haciaDerecha = f.dataset.mover === '1';
+        f.hidden = !sobra || (haciaDerecha ? fin : inicio);
+      }
+    };
+
+    for (const f of flechas) {
+      f.addEventListener('click', () => {
+        // Se avanza el ancho visible menos una tarjeta, para que siempre
+        // quede una a la vista y no se pierda el hilo de dónde se iba.
+        const paso = Math.max(tira.clientWidth - 220, 220);
+        tira.scrollBy({ left: paso * Number(f.dataset.mover), behavior: 'smooth' });
+      });
+    }
+
+    tira.addEventListener('scroll', actualizar, { passive: true });
+    window.addEventListener('resize', actualizar);
+    actualizar();
+  }
+</script>
+
 <style>
   .portada { background: var(--crema); padding-block: 52px 60px; text-align: center; }
-  .portada h1 { font-size: clamp(2rem, 6vw, 3rem); color: var(--guinda); margin: 0 0 16px; }
+  /* El margen va en `auto` a los lados para centrar el bloque del logotipo.
+     Estaba puesto en `.con-logotipo`, pero `.portada h1` es más específica
+     —clase más elemento gana a clase sola— y lo pisaba con `margin: 0`: el
+     logotipo quedaba pegado a la izquierda mientras el resto de la portada
+     iba centrado. Es el mismo tropiezo de siempre con la especificidad. */
+  .portada h1 {
+    font-size: clamp(2rem, 6vw, 3rem); color: var(--principal);
+    margin: 0 auto 16px;
+  }
   .cta { margin-top: 28px; }
 
   .seccion { padding-block: 48px; }
   .seccion.alterna { background: var(--crema); }
-  .seccion h2 { color: var(--guinda); font-size: clamp(1.375rem, 4vw, 1.75rem); margin: 0 0 16px; }
+  .seccion h2 { color: var(--principal); font-size: clamp(1.375rem, 4vw, 1.75rem); margin: 0 0 16px; }
   .antetitulo.izq { text-align: left; }
 
-  .parrafo { color: var(--gris); max-width: 46rem; margin: 0 0 18px; }
+  .parrafo { color: var(--gris); max-width: var(--ancho-lectura); margin: 0 0 18px; }
   .parrafo.menor { font-size: 0.875rem; }
 
   .subrayado {
@@ -231,17 +363,22 @@ const autoevaluacion = [
   .lista-palomas.dos, .lista-preguntas.dos {
     display: grid; gap: 4px 30px; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
   }
+  /* El icono va en su propia columna de la rejilla, no como fondo ni como
+     pseudo-elemento: así el texto que salta a dos renglones se alinea con el
+     de arriba en lugar de meterse debajo del dibujo. `align-items: start`
+     mantiene el icono a la altura de la primera línea. */
   .lista-palomas li, .lista-preguntas li {
-    position: relative; padding-left: 30px; margin-bottom: 11px; color: var(--gris);
+    display: grid; grid-template-columns: 34px 1fr; gap: 12px;
+    align-items: start; margin-bottom: 14px; color: var(--gris);
   }
-  .lista-palomas li::before {
-    content: ''; position: absolute; left: 6px; top: 7px;
-    width: 6px; height: 11px; border: solid var(--guinda);
-    border-width: 0 2px 2px 0; transform: rotate(45deg);
+  .lista-palomas .icono, .lista-preguntas .icono {
+    width: 34px; height: auto; margin-top: -2px;
   }
-  .lista-preguntas li::before {
-    content: ''; position: absolute; left: 4px; top: 10px;
-    width: 8px; height: 8px; border-radius: 50%; background: var(--dorado);
+  /* En teléfono el icono se encoge: con 34 px por punto, seis puntos comen
+     media pantalla antes de que se lea el primero. */
+  @media (max-width: 560px) {
+    .lista-palomas li, .lista-preguntas li { grid-template-columns: 26px 1fr; gap: 10px; }
+    .lista-palomas .icono, .lista-preguntas .icono { width: 26px; }
   }
 
   .dos-columnas {
@@ -255,7 +392,7 @@ const autoevaluacion = [
 
   .destacado {
     font-family: var(--titulos); font-size: 1.125rem; font-weight: 700;
-    color: var(--guinda); border-left: 3px solid var(--dorado);
+    color: var(--principal); border-left: 3px solid var(--dorado);
     padding: 10px 0 10px 16px; margin: 0 0 12px;
   }
 
@@ -270,9 +407,17 @@ const autoevaluacion = [
   .dominios .numero {
     display: inline-flex; align-items: center; justify-content: center;
     width: 30px; height: 30px; border-radius: 50%;
-    background: var(--guinda); color: var(--blanco);
+    background: var(--principal); color: var(--blanco);
     font-family: var(--titulos); font-weight: 700; font-size: 0.9375rem;
   }
+  /* El número y el icono comparten renglón: el número dice el orden —son
+     cinco dominios, no cinco tarjetas sueltas— y el icono dice de qué trata
+     cada uno. Ninguno de los dos sustituye al otro. */
+  .cabeza-dominio {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin: 0;
+  }
+  .icono-grande { width: 52px; height: auto; }
   .dominios h3 { color: var(--texto); font-size: 1.0625rem; margin: 12px 0 6px; }
   .dominios p { color: var(--gris); font-size: 0.9375rem; margin: 0; }
 
@@ -280,7 +425,7 @@ const autoevaluacion = [
     margin: 26px 0 0; color: var(--gris); font-size: 0.9375rem;
     border-top: 1px solid var(--linea); padding-top: 18px;
   }
-  .formula strong { color: var(--guinda); }
+  .formula strong { color: var(--principal); }
 
   .tutela {
     display: grid; gap: 18px; margin: 26px 0 36px;
@@ -289,6 +434,7 @@ const autoevaluacion = [
   .tutela .bloque {
     border-left: 3px solid var(--dorado); padding-left: 16px;
   }
+  .tutela .icono-grande { width: 44px; margin: 0 0 10px; }
   .tutela h3 {
     font-family: var(--titulos); font-size: 1rem; color: var(--texto);
     text-transform: none; letter-spacing: 0; margin: 0 0 6px;
@@ -300,4 +446,69 @@ const autoevaluacion = [
   }
 
   .cierre { background: var(--crema); padding-block: 48px 56px; text-align: center; }
+
+  .con-logotipo { max-width: 420px; }
+  .con-logotipo img { width: 100%; height: auto; }
+  @media (max-width: 480px) { .con-logotipo { max-width: 280px; } }
+
+  /* --- Vitrina de la portada ---------------------------------------------
+     No es un carrusel que gira solo. Rota nada: es una tira que se desplaza a
+     voluntad. Un carrusel automático mueve la tarjeta justo cuando alguien va
+     a darle clic, y quien lee despacio pierde lo que estaba viendo. */
+  .vitrina { background: var(--crema); padding-block: 40px 44px; }
+  .cabecera-vitrina { margin-bottom: 20px; }
+  .vitrina h2 { color: var(--principal); font-size: 1.5rem; margin: 2px 0 0; }
+
+  /* El paso al catálogo completo va al final y centrado: es lo que sigue
+     después de mirar, no algo que compita con el encabezado. */
+  .vitrina .todos { text-align: center; margin: 24px 0 0; }
+  .vitrina .todos .boton { background: var(--blanco); }
+
+  .marco { position: relative; }
+
+  .tira {
+    list-style: none; margin: 0; padding: 4px;
+    display: grid; grid-auto-flow: column; grid-auto-columns: 230px; gap: 16px;
+    overflow-x: auto; scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+  .tira:focus-visible { outline: 3px solid var(--principal); outline-offset: 2px; }
+  .tira > li { scroll-snap-align: start; }
+
+  .tira a {
+    display: grid; text-decoration: none; color: inherit;
+    background: var(--blanco); border: 1px solid var(--linea); border-radius: 10px;
+    overflow: hidden; height: 100%;
+    transition: box-shadow .18s ease, transform .18s ease;
+  }
+  .tira a:hover { box-shadow: 0 6px 20px rgba(0,0,0,.09); transform: translateY(-2px); }
+  .tira img {
+    width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: top center;
+    background: var(--crema); display: block;
+  }
+  .tira .nombre {
+    font-family: var(--titulos); font-weight: 700; font-size: 1.0625rem;
+    color: var(--texto); padding: 12px 14px 0; overflow-wrap: anywhere;
+  }
+  .tira .datos { color: var(--gris); font-size: 0.8125rem; padding: 4px 14px 14px; }
+
+  /* Las flechas son ayuda para quien usa ratón; se esconden solas cuando no
+     hacen falta y nunca son la única forma de avanzar. */
+  /* 44 px: es un control y nada más, así que no hay motivo para que sea el
+     blanco más pequeño de la pantalla. El borde pasa a --linea-campo porque
+     delimita algo que se usa. */
+  .flecha {
+    position: absolute; top: 40%; z-index: 2;
+    width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
+    border: 1px solid var(--linea-campo); background: var(--blanco); color: var(--principal);
+    font-size: 1.5rem; line-height: 1; box-shadow: 0 2px 10px rgba(0,0,0,.12);
+  }
+  .flecha:hover { background: var(--principal); color: var(--blanco); border-color: var(--principal); }
+  .flecha[hidden] { display: none; }
+  .izquierda { left: -14px; }
+  .derecha { right: -14px; }
+
+  @media (max-width: 480px) {
+    .tira { grid-auto-columns: 78%; }
+  }
 </style>

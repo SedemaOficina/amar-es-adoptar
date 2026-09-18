@@ -1,0 +1,339 @@
+---
+/* Tablero de indicadores de operación.
+ *
+ * POR QUÉ NO HAY GRÁFICAS DE PASTEL NI LIBRERÍA DE GRÁFICAS
+ *
+ * Las barras son HTML y CSS, no imágenes ni SVG. Razones: el texto nunca se
+ * encima ni se recorta, un lector de pantalla las recorre sin trabajo extra,
+ * se imprimen bien y no agregan una sola dependencia que ADIP tendría que
+ * mantener. Una biblioteca de gráficas pesa entre 200 y 700 kB para dibujar lo
+ * que aquí son treinta líneas de estilo.
+ *
+ * El pastel se descartó a propósito, aunque la plataforma de ADIP tenga ocho:
+ * sirve para ver una parte contra el todo de un vistazo, no para comparar
+ * valores cercanos. «¿Hay más machos o hembras?» se responde en una barra y se
+ * adivina en un pastel.
+ *
+ * Cada número tiene debajo la lista de los casos que lo componen. Un indicador
+ * que no se puede accionar es adorno.
+ */
+export const prerender = false;
+
+import Administracion from '../../layouts/Administracion.astro';
+import { obtenerIndicadores } from '../../servidor/indicadores.js';
+
+const persona = Astro.locals.persona;
+const datos = await obtenerIndicadores(persona);
+
+const { cabecera, repartos, solicitudes, porCentro, pendientes } = datos;
+
+/** Ancho de la barra, en porcentaje del mayor valor de su grupo. */
+function proporcion(valor, lista) {
+  const mayor = Math.max(...lista.map((f) => f.cuantos), 1);
+  return Math.round((valor / mayor) * 100);
+}
+
+const dias = (iso) =>
+  Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+
+/** «Hoy» se lee mejor que «0 días» y dice exactamente lo mismo. */
+const antiguedad = (iso) => {
+  const d = dias(iso);
+  return d === 0 ? 'hoy' : d === 1 ? '1 día' : `${d} días`;
+};
+
+const fecha = (iso) => new Date(iso).toLocaleDateString('es-MX', { dateStyle: 'medium' });
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+---
+<Administracion titulo="Indicadores" persona={persona}>
+  <div class="encabezado">
+    <h1>Indicadores</h1>
+    <p class="intro">
+      {persona.rol === 'CAPTURISTA'
+        ? `Operación de ${persona.centro_etiqueta}.`
+        : 'Operación de los tres centros.'}
+      {' '}Los números son de este momento, no de un periodo.
+    </p>
+  </div>
+
+  <!-- Cuatro números que responden «¿qué tengo y qué me falta?» -->
+  <div class="tarjetas">
+    <div class="tarjeta">
+      <p class="cifra">{cabecera.disponibles}</p>
+      <p class="que">en adopción</p>
+      <p class="contexto">de {plural(cabecera.total, 'ejemplar registrado', 'ejemplares registrados')}</p>
+    </div>
+
+    <div class:list={['tarjeta', cabecera.sinResolver > 0 && 'urge']}>
+      <p class="cifra">{cabecera.sinResolver}</p>
+      <p class="que">{cabecera.sinResolver === 1 ? 'solicitud sin resolver' : 'solicitudes sin resolver'}</p>
+      <p class="contexto">
+        {cabecera.sinResolver > 0
+          ? <a href="/admin/solicitudes?estado=SIN_RESOLVER">Ver las que esperan ›</a>
+          : 'Nada pendiente de atender.'}
+      </p>
+    </div>
+
+    {/* Sólo aparece cuando hay algo que atender.
+        Ningún alta puede crear un ejemplar sin fotografía (D-107), así que en
+        operación normal este número es cero y una tarjeta que dice «0» todos
+        los días no informa: ocupa lugar y se deja de mirar.
+        Pero NO se retira: la carga inicial del padrón entra por debajo de las
+        pantallas y sí podría meter registros sin imagen (A-08). Cuando eso
+        pase, esta tarjeta es la única que lo va a decir. */}
+    {cabecera.sinFoto > 0 && (
+      <div class="tarjeta atencion">
+        <p class="cifra">{cabecera.sinFoto}</p>
+        <p class="que">{cabecera.sinFoto === 1 ? 'ejemplar sin fotografía' : 'ejemplares sin fotografía'}</p>
+        <p class="contexto">
+          No aparecen en el portal público. Súbeles una para que se publiquen.
+        </p>
+      </div>
+    )}
+
+    <div class="tarjeta">
+      {/* Se cuenta sobre el ejemplar, no sobre la solicitud: un animal puede
+          entregarse sin que haya pasado por el formulario del portal, y el
+          catálogo es la fuente de verdad de lo que ya no está. */}
+      <p class="cifra">{repartos.condicion.find((c) => c.clave === 'ADOPTADO')?.cuantos ?? 0}</p>
+      <p class="que">ya encontraron hogar</p>
+      <p class="contexto">Retirados del catálogo público; el registro se conserva.</p>
+    </div>
+  </div>
+
+  <!-- Lo que hay que atender, con nombre y apellido -->
+  <section class="bloque">
+    <h2>Lo que falta atender</h2>
+    <div class="columnas">
+      <div class="lista">
+        <h3>Solicitudes que llevan más tiempo esperando</h3>
+        {pendientes.esperando.length === 0 ? (
+          <p class="vacio">Ninguna. Todas las solicitudes están resueltas.</p>
+        ) : (
+          <ul>
+            {pendientes.esperando.map((s) => (
+              <li>
+                <a href={`/admin/solicitudes/${s.folio}`}>
+                  <span class="principal">{s.nombres} {s.primer_apellido}</span>
+                  <span class="secundario">solicita a {s.snap_nombre}</span>
+                </a>
+                <span class="medida">{antiguedad(s.recibida_en)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Misma razón que la tarjeta: es una alarma, no un indicador. Se
+          muestra cuando suena, y en operación normal no debería sonar nunca. */}
+      {pendientes.faltanFotos.length > 0 && (
+        <div class="lista">
+          <h3>Ejemplares sin fotografía · no aparecen en el portal</h3>
+          <ul>
+            {pendientes.faltanFotos.map((e) => (
+              <li>
+                <a href={`/admin/ejemplar/${e.slug}/fotos`}>
+                  <span class="principal">{e.nombre}</span>
+                  <span class="secundario">folio {e.folio_interno}</span>
+                </a>
+                <span class="medida">Subir ›</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div class="lista">
+        <h3>En adopción desde hace más tiempo</h3>
+        {pendientes.masTiempo.length === 0 ? (
+          <p class="vacio">No hay ejemplares en adopción.</p>
+        ) : (
+          <ul>
+            {pendientes.masTiempo.map((e) => (
+              <li>
+                <a href={`/admin/ejemplar/${e.slug}`}>
+                  <span class="principal">{e.nombre}</span>
+                  <span class="secundario">
+                    {e.solicitudes > 0
+                      ? plural(e.solicitudes, 'solicitud recibida', 'solicitudes recibidas')
+                      : 'sin solicitudes'}
+                  </span>
+                </a>
+                <span class="medida">{antiguedad(e.creado_en)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  </section>
+
+  <!-- Repartos. Una sola serie por gráfica: un color por gráfica, no uno por barra. -->
+  <section class="bloque">
+    <h2>Cómo se compone el catálogo</h2>
+    <p class="explica">
+      El color sólo aparece donde significa algo: la condición. En sexo, edad y
+      talla todas las barras van del mismo tono, porque ninguna categoría es mejor que
+      otra y teñirlas distinto no diría nada.
+    </p>
+
+    <div class="graficas">
+      {[
+        { titulo: 'Condición', filas: repartos.condicion, conTono: true },
+        { titulo: 'Sexo', filas: repartos.sexo, conTono: false },
+        { titulo: 'Edad', filas: repartos.edad, conTono: false },
+        { titulo: 'Talla', filas: repartos.talla, conTono: false },
+      ].map((g) => (
+        <figure class="grafica">
+          <figcaption>{g.titulo}</figcaption>
+          <ul class="barras">
+            {g.filas.map((f) => (
+              <li>
+                <span class="etiqueta">{f.etiqueta}</span>
+                <span class="pista">
+                  <span class="relleno" data-tono={g.conTono ? f.tono : 'neutro'}
+                        data-cero={f.cuantos === 0 ? '' : undefined}
+                        style={`width: ${proporcion(f.cuantos, g.filas)}%`}></span>
+                </span>
+                <span class="valor">{f.cuantos}</span>
+              </li>
+            ))}
+          </ul>
+        </figure>
+      ))}
+
+      <figure class="grafica">
+        <figcaption>Solicitudes por estado</figcaption>
+        <ul class="barras">
+          {solicitudes.map((s) => (
+            <li>
+              <span class="etiqueta">{s.etiqueta}</span>
+              <span class="pista">
+                <span class="relleno" data-tono={s.tono}
+                      data-cero={s.cuantos === 0 ? '' : undefined}
+                      style={`width: ${proporcion(s.cuantos, solicitudes)}%`}></span>
+              </span>
+              <span class="valor">{s.cuantos}</span>
+            </li>
+          ))}
+        </ul>
+      </figure>
+
+      {porCentro.length > 0 && (
+        <figure class="grafica">
+          <figcaption>Ejemplares por centro</figcaption>
+          <ul class="barras">
+            {porCentro.map((c) => (
+              <li>
+                <span class="etiqueta">{c.etiqueta}</span>
+                <span class="pista">
+                  <span class="relleno" data-tono="neutro"
+                        data-cero={c.cuantos === 0 ? '' : undefined}
+                        style={`width: ${proporcion(c.cuantos, porCentro)}%`}></span>
+                </span>
+                <span class="valor">{c.cuantos}</span>
+              </li>
+            ))}
+          </ul>
+          <p class="pie-grafica">Incluye los ejemplares ya adoptados, que siguen en el registro.</p>
+        </figure>
+      )}
+    </div>
+  </section>
+</Administracion>
+
+<style>
+  .encabezado { margin-bottom: 22px; }
+  h1 { color: var(--principal); font-size: 1.5rem; margin: 0; }
+  .intro { margin: 4px 0 0; color: var(--gris); font-size: 0.9375rem; }
+
+  /* --- Números de cabecera ---------------------------------------------
+     Un número solo no necesita gráfica: el número es la gráfica. */
+  .tarjetas {
+    display: grid; gap: 14px; margin-bottom: 26px;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+  .tarjeta {
+    border: 1px solid var(--linea); border-top: 3px solid var(--linea);
+    border-radius: 10px; padding: 16px 18px; background: var(--blanco);
+  }
+  .tarjeta.urge { border-top-color: var(--alto); background: var(--alto-fondo); }
+  .tarjeta.atencion { border-top-color: var(--atencion); background: var(--atencion-fondo); }
+  .cifra {
+    font-family: var(--cuerpo); font-size: 2.25rem; font-weight: 500;
+    line-height: 1; margin: 0; color: var(--texto); font-variant-numeric: tabular-nums;
+  }
+  .que { margin: 6px 0 0; font-size: 0.9375rem; color: var(--texto); }
+  .contexto { margin: 6px 0 0; font-size: 0.8125rem; color: var(--gris-claro); }
+
+  .bloque { margin-bottom: 44px; }
+  .bloque h2 {
+    font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--gris); margin: 0 0 12px;
+  }
+  .explica { margin: -4px 0 16px; font-size: 0.875rem; color: var(--gris-claro); max-width: 52rem; }
+
+  /* --- Listas accionables ---------------------------------------------- */
+  .columnas { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .lista {
+    border: 1px solid var(--linea); border-radius: 10px; padding: 16px 18px;
+  }
+  .lista h3 {
+    font-size: 0.875rem; font-family: var(--cuerpo); font-weight: 500;
+    color: var(--texto); margin: 0 0 10px;
+  }
+  .lista ul { list-style: none; padding: 0; margin: 0; }
+  .lista li {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    padding: 8px 0; border-bottom: 1px solid var(--linea);
+  }
+  .lista li:last-child { border-bottom: 0; padding-bottom: 0; }
+  .lista a { text-decoration: none; display: grid; min-width: 0; }
+  .lista a:hover .principal { text-decoration: underline; }
+  .principal { color: var(--texto); font-size: 0.9375rem; overflow-wrap: anywhere; }
+  .secundario { color: var(--gris-claro); font-size: 0.8125rem; }
+  .medida {
+    color: var(--gris); font-size: 0.8125rem; white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .vacio { color: var(--gris-claro); font-size: 0.875rem; margin: 0; }
+
+  /* --- Barras -----------------------------------------------------------
+     Marca delgada, pista casi invisible, sin cuadrícula. El valor va al final
+     de cada renglón: son pocas barras y el número exacto importa más que la
+     comparación aproximada. */
+  .graficas { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .grafica {
+    margin: 0; border: 1px solid var(--linea); border-radius: 10px; padding: 16px 18px;
+  }
+  figcaption {
+    font-size: 0.875rem; font-weight: 500; color: var(--texto); margin-bottom: 12px;
+  }
+  .barras { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .barras li {
+    display: grid; grid-template-columns: 7.5rem 1fr 2.5rem; gap: 10px; align-items: center;
+  }
+  .etiqueta { font-size: 0.8125rem; color: var(--gris); overflow-wrap: anywhere; }
+  .pista { background: var(--inactivo-fondo); border-radius: 3px; height: 10px; }
+  /* El mínimo de 2 px evita que una barra pequeña desaparezca, pero NO debe
+     aplicarse al cero: una marca donde no hay nada hace leer «un poquito»
+     donde el dato dice ninguno. */
+  .relleno {
+    display: block; height: 100%; border-radius: 3px; min-width: 2px;
+    background: var(--principal);
+  }
+  .relleno[data-cero] { min-width: 0; }
+  .relleno[data-tono="exito"]    { background: var(--exito); }
+  .relleno[data-tono="atencion"] { background: var(--atencion); }
+  .relleno[data-tono="alto"]     { background: var(--alto); }
+  .relleno[data-tono="inactivo"] { background: var(--inactivo); }
+  .valor {
+    text-align: right; font-size: 0.875rem; color: var(--texto);
+    font-variant-numeric: tabular-nums;
+  }
+  .pie-grafica { margin: 12px 0 0; font-size: 0.75rem; color: var(--gris-claro); }
+
+  @media print {
+    .tarjeta, .lista, .grafica { break-inside: avoid; }
+  }
+</style>

@@ -1,45 +1,75 @@
 ---
-/* Tarjeta del catálogo. Lleva los valores del ejemplar en atributos
-   data-* porque el filtrado se hace en el navegador sobre estos mismos
-   elementos, sin volver a pedir nada al servidor. */
-import { etiqueta, portada } from '../datos/ejemplares.js';
+/* Tarjeta del catálogo público.
+ *
+ * ETAPA 3: recibe un renglón de la base, no del archivo de datos ficticios,
+ * y ya no lleva atributos data-* — el filtrado dejó de hacerse en el
+ * navegador y pasó al servidor, donde escala a cientos de registros y deja
+ * direcciones compartibles.
+ *
+ * Espera las etiquetas ya resueltas: una tarjeta no consulta catálogos.
+ */
+import { urlFoto } from '../servidor/fotografias.js';
+import { esperaDe } from '../servidor/ejemplares-publico.js';
 
 const { ejemplar } = Astro.props;
-const foto = portada(ejemplar);
+
+/* Sólo aparece cuando hay algo que decir. El porqué de mostrar el tiempo de
+   espera y no el número de solicitudes está en `esperaDe()`. */
+const espera = esperaDe(ejemplar);
+
+const alterno = ejemplar.portada
+  ? (ejemplar.portada_alterno ?? `Fotografía de ${ejemplar.nombre}`)
+  : `${ejemplar.nombre} todavía no tiene fotografía`;
+
+/* La tarjeta dice lo mismo que la ficha.
+ *
+ * Antes ponía «Adóptame» siempre, sin mirar la condición. Quien entraba a un
+ * ejemplar en proceso se topaba con otra cosa: la tarjeta prometía y la ficha
+ * desmentía. Es el mismo defecto que ya está anotado en el registro de
+ * lecciones para los textos que describen un comportamiento viejo, sólo que
+ * aquí los dos textos son del sistema y se contradicen entre sí.
+ *
+ * NO LLEVA INSIGNIA, Y ES DELIBERADO
+ * Se consideró agregar una insignia «En proceso» con el color `--atencion`,
+ * que es el que el sistema asigna a ese estado. Se descartó: al lado vive la
+ * insignia de espera, que es crema y dorada, y las dos quedarían del mismo
+ * familia de tono. La de espera existe para repartir la demanda hacia quien
+ * lleva más tiempo —ver `esperaDe()`—, y ése es el trabajo que no puede
+ * perder fuerza. Dos avisos ámbar juntos se anulan. La palabra del botón ya
+ * dice lo que hay que decir, y no agrega una pieza más a la tarjeta.
+ */
+const enProceso = ejemplar.condicion === 'EN_PROCESO';
+const accion = enProceso ? 'Registrar mi interés' : 'Adóptame';
 ---
-<article
-  class="tarjeta"
-  data-ejemplar
-  data-nombre={ejemplar.nombre.toLocaleLowerCase('es')}
-  data-edad={ejemplar.edad_clave}
-  data-sexo={ejemplar.sexo_clave}
-  data-talla={ejemplar.talla_clave}
->
-  <img class="foto" src={foto.archivo} alt={foto.texto_alternativo} width="960" height="720" loading="lazy" />
+<article class="tarjeta">
+  <img class="foto" src={urlFoto(ejemplar.portada)} alt={alterno}
+       width="480" height="360" loading="lazy" />
 
   <div class="cuerpo">
+    {espera && <p class="espera">{espera}</p>}
+
     <p class="rotulo">Me llamo</p>
     <h2 class="nombre">{ejemplar.nombre}</h2>
 
     <dl class="datos">
       <div>
         <dt>Edad</dt>
-        <dd>{etiqueta('edad', ejemplar.edad_clave)}</dd>
+        <dd>{ejemplar.edad_etiqueta}</dd>
       </div>
       <div>
         <dt>Soy</dt>
-        <dd>{etiqueta('sexo', ejemplar.sexo_clave)}</dd>
+        <dd>{ejemplar.sexo_etiqueta}</dd>
       </div>
       <div>
         <dt>Talla actual</dt>
-        <dd>{etiqueta('talla', ejemplar.talla_clave)}</dd>
+        <dd>{ejemplar.talla_etiqueta}</dd>
       </div>
     </dl>
 
     <a
       class="boton boton-linea"
       href={`/seres-sintientes/${ejemplar.slug}`}
-      aria-label={`Adóptame — conoce la ficha de ${ejemplar.nombre}`}
-    >Adóptame</a>
+      aria-label={`${accion} — conoce la ficha de ${ejemplar.nombre}`}
+    >{accion}</a>
   </div>
 </article>

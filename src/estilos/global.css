@@ -7,17 +7,109 @@
 
 :root {
   /* Paleta institucional */
+  /* --- El color de la casa ------------------------------------------------
+     El principal del programa es el MORADO de la marca «Amar es Adoptar»
+     (D-119). El guinda institucional deja de ser el color principal y se
+     queda con un solo trabajo: alertar. Antes hacía los dos a la vez, y por
+     eso un mensaje de error tenía exactamente el mismo tono que el botón
+     Guardar: el error no resaltaba, se confundía con el color de la casa.
+
+     El encabezado del Gobierno de la Ciudad no se toca: esa barra no es del
+     programa.
+
+     MEDIDO sobre blanco: morado 6.04:1, morado oscuro 7.53:1, guinda 7.65:1.
+     Los tres cumplen para texto. El morado pierde el nivel AAA que daba el
+     guinda, y por eso lo pequeño y los estados de paso del cursor usan el
+     tono oscuro.
+
+     ADVERTENCIA: morado y guinda tienen 1.27:1 ENTRE SÍ. En luminancia son
+     casi el mismo color, así que quien no distingue tonos no los separa. Es
+     el mismo caso que rojo y guinda, y lo resuelve la misma regla del
+     sistema: el color nunca va solo. Cada estado lleva su palabra y cada
+     acción de riesgo lleva además su icono. */
+  --principal: #96438C;
+  --principal-oscuro: #7E3B79;
+
+  /* Institucional. Ya no pinta botones ni enlaces: vive en --alto y en lo
+     que sea propiamente del Gobierno de la Ciudad. */
   --guinda: #9D2148;
   --guinda-oscuro: #7A1937;
   --dorado: #B28E5C;        /* institucional: filetes, bordes y acentos */
   --dorado-texto: #8A6A3C;  /* mismo dorado oscurecido para texto pequeño (4.9:1) */
   --gris: #55585A;
-  --gris-claro: #6E7275; /* 4.9:1 sobre blanco — cumple WCAG AA para texto */
+  /* 5.07:1 sobre blanco y 4.70:1 sobre crema. El valor anterior (#6E7275)
+     daba 4.4996:1 sobre crema: se quedaba a milésimas del mínimo, y donde más
+     se usa es justo sobre crema —la nota del nombre, el antetítulo—. */
+  --gris-claro: #6B6F72;
+
+  /* Colores con significado, no decorativos.
+     Se usan sólo donde el color informa: el semáforo conductual, la condición
+     del ejemplar y el estado de una solicitud. Nunca van solos: siempre
+     acompañan a una palabra, porque quien no distingue colores debe poder
+     leer lo mismo.
+
+     Los cuatro tonos están medidos, no elegidos a ojo: cada uno supera 4.5:1
+     de contraste sobre blanco y sobre su propio fondo tenue, que es lo que la
+     norma pide para texto. Dos versiones anteriores no pasaron —un ámbar en
+     3.9:1 y un verde tan desaturado que a tamaño de punto leía gris— y por eso
+     estos valores son los que son.
+
+     El color viste la marca: el punto, el borde, el relleno de una barra.
+     El texto viste tinta. Así la legibilidad no depende del tono. */
+  --exito: #146B45;         /* disponible, aprobado: la vía libre */
+  --exito-fondo: #EDF4EF;
+  --atencion: #8A5C00;      /* en proceso, amarillo: avanza con cuidado */
+  --atencion-fondo: #FAF3E7;
+  --alto: var(--guinda);    /* el guinda institucional, ahora SÓLO alerta */
+  --alto-fondo: #FBF0F3;
+  --inactivo: #6E7275;      /* adoptado, rechazado: fuera del flujo */
+  --inactivo-fondo: #F2F1EF;
+
+  /* Rojo de «esto no se deshace». Hacía falta uno propio porque el guinda es
+     el color de TODA acción principal del sistema: si además significara
+     peligro, dejaría de significar cualquier cosa.
+     5.62:1 sobre blanco, y 5.62:1 con texto blanco encima.
+     ADVERTENCIA MEDIDA: rojo y guinda tienen entre sí 1.36:1 de contraste. En
+     luminancia son casi el mismo color, y quien no distingue rojos no los
+     separará nunca. Por eso el color NO lleva solo el mensaje: el botón que
+     borra lleva además un icono de bote de basura y la palabra «borrar». */
+  --peligro: #C62828;
+  --peligro-oscuro: #A81F1F;
+
+  /* --- Identidad del programa «Amar es Adoptar» --------------------------
+     Manual de marca del programa. Convive con la institucional: el marco
+     —encabezado, banda de navegación y pie— es de la Ciudad de México; estos
+     colores viven dentro del contenido.
+
+     REGLA QUE NO SE ROMPE: el naranja NO lleva texto ni trazos finos.
+     Medido: 2.65:1 de contraste sobre blanco, cuando la norma pide 4.5:1 para
+     texto y 3:1 para elementos gráficos. Es color de superficie —rellenos,
+     iconos grandes, fondos— nunca de tinta. Para escribir en naranja existe
+     --naranja-texto, que es el mismo tono oscurecido hasta cumplir.
+
+     El morado (6.08:1) y el guinda (7.65:1) sí sirven para texto. */
+  /* El morado de la marca. Diseño entregó tres tonos distintos en los SVG
+     —#96438C, #99439C y #8F4899—; es una inconsistencia del archivo, no una
+     decisión. Se fijó el dominante, #96438C, y es el único que se usa.
+     `--morado` y `--principal` son el mismo color a propósito: uno nombra el
+     pigmento, el otro el trabajo que hace. */
+  --morado: #96438C;
+  --morado-oscuro: #7E3B79;
+  --morado-claro: #B07FAC;
+  --morado-tenue: #E9DCE8;
+  --naranja: #F08217;         /* sólo relleno */
+  --naranja-texto: #9A4E00;   /* 5.9:1 — para escribir */
+  --naranja-tenue: #FDEEDC;
 
   /* Neutros de apoyo */
   --crema: #FAF6EC;
   --blanco: #FFFFFF;
-  --linea: #E5E1DA;
+  --linea: #E5E1DA;      /* separadores decorativos: no tienen exigencia */
+  /* Contorno de los campos. La norma pide 3:1 para el borde de un control y
+     --linea da 1.30:1: quien tiene visión baja no ve dónde empieza el campo.
+     Éste da 3.56:1 sobre blanco y 3.30:1 sobre crema.
+     REGLA: --linea para adornar, --linea-campo para delimitar algo que se usa. */
+  --linea-campo: #8C8781;
   --texto: #2E3133;
 
   /* Tipografías */
@@ -26,6 +118,13 @@
 
   /* Medidas */
   --ancho-maximo: 1180px;
+  /* Ancho de una columna de lectura. Se repetía como «46rem» en veinte
+     lugares, y de ahí salió un defecto: el encabezado de la ficha de
+     administración ocupaba los 1180 px del contenedor mientras todo lo demás
+     se quedaba en 46rem, así que los atajos se iban 450 px a la derecha y la
+     pantalla se leía como dos columnas que no se hablan. Con una sola medida
+     eso no vuelve a pasar por descuido. */
+  --ancho-lectura: 46rem;
   --gutter: 16px;
 }
 
@@ -42,7 +141,7 @@ body {
 
 h1, h2, h3 { font-family: var(--titulos); font-weight: 700; line-height: 1.25; }
 
-a { color: var(--guinda); }
+a { color: var(--principal); }
 
 /* height:auto es indispensable: sin él, los atributos width/height del HTML
    imponen la altura real y anulan cualquier proporción definida en CSS. */
@@ -58,17 +157,43 @@ img { max-width: 100%; height: auto; display: block; }
 }
 
 /* Foco visible en todo elemento interactivo: requisito de accesibilidad
-   para navegación por teclado en un portal de gobierno. */
-:where(a, button, input, select, [tabindex]):focus-visible {
-  outline: 3px solid var(--dorado);
+   para navegación por teclado en un portal de gobierno.
+ *
+ * El anillo era dorado y sólo cumplía sobre blanco puro, y por poco: 3.04:1
+ * contra el 3:1 que pide la norma. Sobre cualquier fondo tintado del sistema
+ * se quedaba corto —crema 2.81, rosa tenue 2.72, gris tenue 2.69—, es decir
+ * en las franjas donde vive la mitad del contenido.
+ *
+ * Hoy es el morado del programa: 6.04:1 sobre blanco y 5.59 sobre crema,
+ * holgado para lo que pide la norma. Se usa el principal y no el guinda
+ * porque el guinda ya significa otra cosa —alerta—, y un anillo de foco no
+ * es una advertencia: es dónde estoy parado. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--principal);
   outline-offset: 2px;
 }
 
-/* Texto sólo para lectores de pantalla. */
-.solo-lectores {
-  position: absolute; width: 1px; height: 1px;
-  padding: 0; margin: -1px; overflow: hidden;
-  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+/* Dentro de la banda de navegación, el anillo se pinta en blanco: el guinda
+   sobre guinda no se vería. Blanco sobre guinda da 7.65:1. */
+.banda-navegacion :where(a, button):focus-visible {
+  outline: 3px solid var(--blanco);
+  outline-offset: 2px;
+}
+
+/* Salto al contenido principal: el primer elemento del <body>, para saltarse
+   el encabezado y la navegación de una sola pulsación.
+   Está fuera de la pantalla, pero con una diferencia que antes faltaba: al
+   recibir el foco se muestra. Sin eso, quien navega con teclado y sí ve la
+   pantalla recibía el foco en un enlace invisible y lo perdía de vista. */
+.salto-contenido {
+  position: absolute; left: -9999px; top: 0; z-index: 100;
+}
+.salto-contenido:focus {
+  left: 8px; top: 8px;
+  width: auto; height: auto; clip: auto; overflow: visible;
+  background: var(--principal); color: var(--blanco);
+  padding: 13px 18px; border-radius: 0 0 6px 6px;
+  font-size: 0.9375rem; text-decoration: none;
 }
 
 /* ---------- Encabezado institucional ---------- */
@@ -83,18 +208,67 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .barra-institucional img { height: 38px; width: auto; }
 
-.banda-guinda { background: var(--guinda); }
-.banda-guinda nav {
-  display: flex; flex-wrap: wrap; justify-content: center;
-  gap: 4px 0; padding-block: 10px;
+/* Logotipo del programa en la barra. Uno u otro, nunca los dos. */
+.barra-institucional .marca-programa { height: 34px; }
+.barra-institucional .marca-programa-chica { height: 34px; display: none; }
+@media (max-width: 560px) {
+  .barra-institucional .marca-programa { display: none; }
+  .barra-institucional .marca-programa-chica { display: block; }
+  .barra-institucional img { height: 30px; }
 }
-.banda-guinda a {
+
+/* EL MARCO ES INSTITUCIONAL, EL CONTENIDO ES DEL PROGRAMA.
+   La banda de navegación y el pie enmarcan el sitio, y ese marco es del
+   Gobierno de la Ciudad: van en guinda, como el encabezado. El morado del
+   programa vive de aquí hacia adentro —botones, enlaces, títulos, estados—.
+   Así el portal se reconoce como de gobierno antes de reconocerse como de
+   «Amar es Adoptar», que es el orden correcto. */
+.banda-navegacion { background: var(--guinda); }
+.banda-navegacion nav {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 2px 0; padding-block: 4px;
+}
+/* 12 px arriba y abajo dan unos 45 px de alto tocable. Con los 6 px que
+   tenía antes quedaban 33: por encima del mínimo de la norma (24) y por
+   debajo de lo cómodo (44), en un portal cuyo tráfico será sobre todo de
+   teléfono. */
+.banda-navegacion a {
   color: var(--blanco); text-decoration: none;
-  font-size: 0.875rem; padding: 6px 18px;
+  font-size: 0.875rem; padding: 12px 18px;
   border-right: 1px solid rgba(255,255,255,0.45);
 }
-.banda-guinda a:last-child { border-right: 0; }
-.banda-guinda a:hover, .banda-guinda a:focus-visible { text-decoration: underline; }
+.banda-navegacion a:last-child { border-right: 0; }
+/* TODOS LOS ENLACES DE LA BANDA SE COMPORTAN IGUAL.
+   Antes no: al paso del ratón se subrayaban, pero el apartado en el que estás
+   llevaba un filete blanco. Eran dos lenguajes visuales en una misma barra, y
+   el enlace del catálogo parecía otra clase de elemento, no el mismo en otro
+   estado.
+
+   Ahora hay un solo lenguaje: el filete blanco de 3 px. Aparece al pasar el
+   ratón, al recibir el foco, y se queda fijo en el apartado en el que estás.
+   Lo que distingue a ese del que sólo estás tocando es el peso de la
+   tipografía, que es una segunda señal y no depende de percibir un color.
+
+   El espacio del filete se reserva desde el principio, con un filete
+   transparente: si apareciera de la nada, el texto brincaría 3 px cada vez
+   que el ratón pasa por encima. */
+.banda-navegacion a {
+  box-shadow: inset 0 -3px 0 transparent;
+  transition: box-shadow 120ms ease;
+}
+.banda-navegacion a:hover,
+.banda-navegacion a:focus-visible {
+  box-shadow: inset 0 -3px 0 var(--blanco);
+}
+.banda-navegacion a[aria-current="page"] {
+  font-weight: 600;
+  box-shadow: inset 0 -3px 0 var(--blanco);
+}
+
+/* Quien pidió menos movimiento no ve la transición; el filete sí aparece. */
+@media (prefers-reduced-motion: reduce) {
+  .banda-navegacion a { transition: none; }
+}
 
 /* ---------- Aviso de desarrollo ---------- */
 
@@ -117,9 +291,29 @@ img { max-width: 100%; height: auto; display: block; }
   max-width: 44rem; margin: 0 auto; text-align: center;
   color: var(--gris); font-size: 1.0625rem;
 }
+/* La garantía sanitaria. Es un dato con peso de decisión, no una nota: se
+   trata como distintivo y no como párrafo. El verde es el mismo `--exito` del
+   sistema —«vía libre»— y es el único color de la cabecera que no es guinda
+   ni dorado, así que también rompe la monotonía sin inventar una paleta.
+   El icono va con `aria-hidden`: lo que dice ya está escrito al lado. */
+.garantia {
+  display: inline-flex; align-items: center; gap: 9px;
+  margin: 20px auto 0; padding: 10px 18px 10px 14px;
+  background: var(--exito-fondo); color: var(--exito);
+  border: 1px solid color-mix(in srgb, var(--exito) 28%, transparent);
+  border-radius: 999px; font-size: 0.9375rem; line-height: 1.35;
+  text-align: left;
+}
+.garantia svg { flex: 0 0 auto; }
+.garantia strong { font-weight: 600; }
+
+/* El centrado de un elemento en línea dentro de un contenedor de bloque no se
+   hereda: el párrafo es inline-flex, así que se centra desde el padre. */
+.centrado-garantia { text-align: center; }
+
 .nota-nombre {
-  max-width: 46rem; margin: 18px auto 0; text-align: center;
-  color: var(--gris-claro); font-size: 0.875rem;
+  max-width: 38rem; margin: 18px auto 0; text-align: center;
+  color: var(--gris-claro); font-size: 0.8125rem; line-height: 1.5;
 }
 
 /* ---------- Rejilla de tarjetas ---------- */
@@ -131,6 +325,7 @@ img { max-width: 100%; height: auto; display: block; }
 }
 
 .tarjeta {
+  position: relative;
   background: var(--blanco);
   border: 1px solid var(--linea);
   border-radius: 10px;
@@ -139,6 +334,19 @@ img { max-width: 100%; height: auto; display: block; }
   transition: box-shadow .18s ease, transform .18s ease;
 }
 .tarjeta:hover { box-shadow: 0 6px 20px rgba(0,0,0,.09); transform: translateY(-2px); }
+
+/* Toda la tarjeta lleva a la ficha, no sólo el botón: en teléfono la gente
+   toca la fotografía y el nombre, que es lo que está mirando.
+   Se consigue estirando el enlace que YA existe sobre la tarjeta entera, en
+   lugar de envolverla en un segundo enlace. Así sigue habiendo un solo
+   destino para quien navega con teclado o con lector de pantalla: dos
+   enlaces al mismo sitio obligan a tabular dos veces para nada. */
+.tarjeta .boton::after {
+  content: ''; position: absolute; inset: 0; border-radius: 10px;
+}
+/* El foco se dibuja sobre la tarjeta completa, que es lo que se activa. */
+.tarjeta:focus-within { outline: 3px solid var(--principal); outline-offset: 2px; }
+.tarjeta .boton:focus-visible { outline: none; }
 
 /* Una sola proporción en todo el sitio: 4:3, con encuadre superior.
    El encuadre superior es lo que protege la cabeza del animal cuando la
@@ -165,33 +373,175 @@ img { max-width: 100%; height: auto; display: block; }
    recortaba "Adulto" a "Adultc" porque no cabían en una sola línea. */
 .datos { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 0 0 18px; }
 .datos div { min-width: 0; }
+/* 12 px, no 10. Las versalitas con separación de letras se leen peor que el
+   texto normal del mismo tamaño, y el público del programa incluye personas
+   mayores. La norma no fija un mínimo; la legibilidad sí. */
 .datos dt {
-  font-size: 0.625rem; letter-spacing: 0.12em; text-transform: uppercase;
+  font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--gris-claro); margin: 0;
 }
-.datos dd { margin: 2px 0 0; font-size: 0.875rem; color: var(--gris); }
+.datos dd { margin: 3px 0 0; font-size: 0.9375rem; color: var(--gris); }
+
+/* Texto que sólo leen los lectores de pantalla. Lo usa la paginación, donde
+   un «5» suelto no dice nada y «Página 5» sí. */
+.solo-lectores {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---------- Errores de formulario ---------- */
+
+/* Marca de campo obligatorio. Va oculta a los lectores de pantalla porque el
+   atributo `required` ya se lo dice; el asterisco es para quien mira. */
+.req { color: var(--alto); font-weight: 700; }
+
+/* Mensaje de error bajo un campo.
+ *
+ * Está aquí, y no sólo en el ámbito de cada pantalla, por la misma razón que
+ * el resumen: cuando el foco sale de un campo mal llenado, el guion CREA este
+ * párrafo, y un elemento creado desde JavaScript no lleva el atributo con que
+ * Astro marca los estilos de una página. Las pantallas pueden seguir
+ * afinándolo en su propio ámbito; lo que no pueden es ser las únicas que lo
+ * definan. */
+.error { color: var(--alto); font-size: 0.8125rem; margin: 5px 0 0; font-weight: 500; }
+
+/* Resumen de errores al principio del formulario. Cada renglón es un enlace al
+   campo que falló.
+ *
+ * Vive aquí y no en el ámbito de una página por una razón concreta: el guion
+ * del navegador lo rellena cuando es él quien detecta las faltas, y un
+ * elemento creado desde JavaScript no lleva el atributo con que Astro marca
+ * los estilos de una página. Si estos estilos fueran de la página, el resumen
+ * del servidor se vería bien y el del navegador saldría sin formato. */
+.resumen-errores {
+  border: 2px solid var(--alto); background: var(--alto-fondo);
+  border-radius: 8px; padding: 14px 16px; margin: 0 0 22px;
+}
+.resumen-errores[hidden] { display: none; }
+.resumen-errores:focus { outline: 3px solid var(--principal); outline-offset: 3px; }
+.resumen-errores .titulo-resumen { margin: 0 0 8px; color: var(--texto); }
+.resumen-errores ul { margin: 0; padding-left: 20px; }
+.resumen-errores li { margin: 0 0 4px; }
+.resumen-errores li:last-child { margin-bottom: 0; }
+/* Los enlaces del resumen van en el color de la alerta, no en el de la casa.
+   Con el color de enlace normal, once renglones morados dentro de una caja
+   guinda hacían que el bloque dejara de leerse como una sola advertencia: se
+   veía como una lista de enlaces que por casualidad estaba enmarcada. */
+.resumen-errores a { color: var(--alto); }
+
+/* ---------- Apartados ----------
+ *
+ * Un sistema, no una decisión por pantalla. Antes cada archivo repetía el
+ * mismo rótulo de 11 px en versalitas doradas y se separaba con la medida que
+ * le tocó —18, 22, 28, 32, 40 px—, así que cuatro apartados seguidos se leían
+ * como una sola cosa larga.
+ *
+ * LA REGLA DE LOS DOS RÓTULOS, que conviene no mezclar:
+ *   · Dorado, pequeño, sin negritas → ETIQUETA DE UN DATO. «Me llamo»,
+ *     «Ser sintiente elegido», «Edad». Acompaña a un valor.
+ *   · Gris, 13 px, negritas → TÍTULO DE UN APARTADO. «Fotografías»,
+ *     «Historial», «Persona solicitante». Encabeza un bloque.
+ */
+/* Canon de apartado. Las pantallas ya construidas repiten estos valores en su
+   <style> porque Astro aísla los estilos por archivo; esta es la definición de
+   referencia: pantalla nueva, se usa `class="apartado"` y no se vuelve a
+   escribir la medida. Si algún día cambia la separación, cambia aquí y se
+   corrige lo demás contra este bloque. */
+.apartado {
+  margin-top: 44px; padding-top: 24px;
+  border-top: 1px solid var(--linea);
+  max-width: var(--ancho-lectura);
+}
+
+.apartado > h2,
+fieldset > legend {
+  font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--gris); margin: 0 0 12px;
+}
+fieldset > legend { padding: 0 8px; margin-bottom: 0; }
+
+/* ---------- Migaja de regreso ----------
+   El «‹ Catálogo» de arriba de cada ficha. Estaba a 12 px, en gris claro y
+   sin relleno: medía 18 px de alto, por debajo del mínimo de 24 que pide la
+   norma para algo tocable, y era el ÚNICO camino de regreso de la pantalla.
+   Se veía menos que una nota al pie siendo un control de navegación.
+
+   Ahora: 13 px, semibold, gris de texto y con relleno propio, lo que la deja
+   en unos 37 px de alto. Estaba repetida en seis pantallas con tres medidas
+   distintas; aquí está una sola vez. */
+.migaja { margin: 0 0 12px; }
+.migaja a {
+  display: inline-block; padding: 8px 2px;
+  font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--gris); text-decoration: none;
+}
+.migaja a:hover { color: var(--principal); text-decoration: underline; }
+
+/* ---------- Tiempo de espera ----------
+   Se enuncia en positivo y en dorado, no en rojo ni con signo de alarma: lo
+   que se quiere es que el ejemplar gane atención, no que dé lástima. Aparece
+   sólo a partir del umbral; por debajo, nada. */
+.espera {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: 0 0 8px; padding: 4px 10px 4px 8px;
+  background: var(--crema); color: var(--dorado-texto);
+  border: 1px solid var(--dorado); border-radius: 999px;
+  font-size: 0.75rem; font-weight: 600; line-height: 1.3;
+}
+.espera::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--dorado); flex: 0 0 auto;
+}
 
 /* ---------- Botones ---------- */
 
 .boton {
-  display: inline-block; text-align: center; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  text-align: center; text-decoration: none;
   font-family: var(--cuerpo); font-size: 0.9375rem; font-weight: 500;
-  padding: 11px 22px; border-radius: 999px; border: 1.5px solid var(--guinda);
+  padding: 11px 22px; min-height: 44px; border-radius: 999px;
+  border: 1.5px solid var(--principal);
   cursor: pointer; transition: background .16s ease, color .16s ease;
 }
-.boton-linea { background: var(--blanco); color: var(--guinda); }
-.boton-linea:hover { background: var(--guinda); color: var(--blanco); }
-.boton-solido { background: var(--guinda); color: var(--blanco); }
-.boton-solido:hover { background: var(--guinda-oscuro); border-color: var(--guinda-oscuro); }
+.boton-linea { background: var(--blanco); color: var(--principal); }
+.boton-linea:hover { background: var(--principal); color: var(--blanco); }
+.boton-solido { background: var(--principal); color: var(--blanco); }
+.boton-solido:hover { background: var(--principal-oscuro); border-color: var(--principal-oscuro); }
+/* La norma exime a los controles inactivos del contraste mínimo, así que lo
+   de antes —4.23:1— no era un incumplimiento. Pero el «Adóptame» apagado de
+   un ejemplar en proceso NO es decoración: dice que ese animal ya no admite
+   solicitudes, y eso hay que poder leerlo. Ahora da 5.97:1, y el contorno
+   cumple los 3:1 que pide un elemento gráfico. */
 .boton[aria-disabled="true"], .boton:disabled {
-  background: #EDEAE5; color: var(--gris-claro); border-color: var(--linea);
+  background: #EDEAE5; color: var(--gris); border-color: var(--linea-campo);
   cursor: not-allowed; pointer-events: none;
 }
 .tarjeta .boton { margin-top: auto; width: 100%; }
 
-/* ---------- Filtros ---------- */
+/* Variantes con significado. No son adorno: cada una dice qué clase de cosa
+   va a pasar, y las dos de riesgo llevan icono porque el color no alcanza
+   —rojo y guinda tienen 1.36:1 de contraste entre sí, o sea que en luminancia
+   son el mismo color y quien no distingue rojos no los separa nunca—.
+   Cuándo se usa cada una:
+     boton-solido   la acción principal de la pantalla
+     boton-linea    secundaria, cancelar, navegar
+     boton-cuidado  cambia el estado de un registro, pero se puede deshacer
+     boton-peligro  no se deshace */
+.boton-cuidado {
+  background: var(--atencion); color: var(--blanco); border-color: var(--atencion);
+}
+.boton-cuidado:hover { background: #6F4A00; border-color: #6F4A00; }
 
-.zona-filtros { display: flex; justify-content: center; margin-top: 26px; }
+.boton-peligro {
+  background: var(--peligro); color: var(--blanco); border-color: var(--peligro);
+}
+.boton-peligro:hover { background: var(--peligro-oscuro); border-color: var(--peligro-oscuro); }
+
+/* El icono acompaña al texto; nunca lo sustituye. */
+.boton svg { flex: 0 0 auto; margin-right: 8px; }
+
+/* ---------- Filtros ---------- */
 
 .panel-filtros {
   border: 1px solid var(--linea); border-radius: 10px; background: var(--blanco);
@@ -199,13 +549,31 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .panel-filtros[hidden] { display: none; }
 .campos { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+
+/* En teléfono, `minmax(180px, …)` sólo deja caber una columna: los cuatro
+   campos se apilan y el panel abierto ocupa unos 350 px, así que la primera
+   tarjeta queda debajo del pliegue y se abre el catálogo sin ver un solo
+   ejemplar.
+   Con dos columnas el mismo panel baja a unos 190 px. Se fuerza el número de
+   columnas en lugar de bajar el `minmax`, porque lo segundo dejaría tres
+   columnas apretadas en tabletas. `minmax(0, 1fr)` y no `1fr` a secas: sin el
+   0, el contenido de un campo puede empujar la columna y desbordar. */
+@media (max-width: 560px) {
+  .campos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+}
 .campos label { display: block; font-size: 0.75rem; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--gris-claro); margin-bottom: 5px; }
+/* 12 px de relleno dan 44 px de alto. Antes eran 9 y quedaban en 40: por
+   encima del mínimo de la norma, por debajo de lo cómodo en teléfono. */
 .campos select, .campos input {
-  width: 100%; padding: 9px 11px; font-family: var(--cuerpo); font-size: 0.9375rem;
-  border: 1px solid var(--linea); border-radius: 6px; background: var(--blanco); color: var(--texto);
+  width: 100%; padding: 12px 11px; font-family: var(--cuerpo); font-size: 0.9375rem;
+  border: 1px solid var(--linea-campo); border-radius: 6px; background: var(--blanco); color: var(--texto);
+  min-height: 44px;
 }
-.acciones-filtros { display: flex; justify-content: flex-end; margin-top: 14px; }
+.acciones-filtros {
+  display: flex; justify-content: flex-end; align-items: center;
+  gap: 10px; flex-wrap: wrap; margin-top: 14px;
+}
 
 .conteo { text-align: center; color: var(--gris); font-size: 0.875rem; margin-top: 22px; }
 
@@ -213,21 +581,63 @@ img { max-width: 100%; height: auto; display: block; }
 
 .paginacion { display: flex; justify-content: center; align-items: center;
   gap: 8px; flex-wrap: wrap; padding-block: 8px 48px; }
-.paginacion button {
-  min-width: 42px; padding: 8px 12px; font-family: var(--cuerpo); font-size: 0.9375rem;
-  background: var(--blanco); color: var(--guinda);
-  border: 1px solid var(--linea); border-radius: 6px; cursor: pointer;
-}
-.paginacion button[aria-current="page"] {
-  background: var(--guinda); color: var(--blanco); border-color: var(--guinda); font-weight: 600;
-}
-.paginacion button:disabled { color: var(--gris-claro); cursor: not-allowed; }
-
 .sin-resultados { text-align: center; color: var(--gris); padding: 48px 0 64px; }
 .sin-resultados[hidden] { display: none; }
 
+/* ---------- Menos movimiento ----------
+   Quien lo pide en su sistema operativo tiene un motivo: mareo, vértigo o
+   simple distracción. Se anulan los desplazamientos y se conservan los
+   cambios de color, que no mueven nada. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .tarjeta:hover { transform: none; }
+}
+
 /* ---------- Pie ---------- */
 
-.pie { margin-top: 56px; border-top: 3px solid var(--dorado); background: var(--crema); }
-.pie .contenedor { padding-block: 26px; color: var(--gris); font-size: 0.8125rem; }
-.pie p { margin: 0 0 6px; }
+/* El pie cierra el marco institucional: guinda con filete dorado, los dos
+   colores del Gobierno de la Ciudad. Antes era crema con texto gris, que no
+   cerraba nada: la página simplemente se acababa. */
+.pie { margin-top: 56px; border-top: 3px solid var(--dorado); background: var(--guinda); }
+.pie .contenedor { padding-block: 24px; color: var(--blanco); font-size: 0.8125rem; }
+.pie a { color: var(--blanco); }
+.pie :where(a):focus-visible { outline: 3px solid var(--blanco); outline-offset: 2px; }
+.pie p { margin: 0 0 2px; }
+
+/* El enlace del pie medía 15 px de alto. La norma pide 24 px para cualquier
+   destino tocable, y la excepción de «enlace dentro de una frase» no aplica:
+   está solo, en su propio renglón. Con el relleno queda en 33. */
+.pie a {
+  display: inline-block; padding: 9px 2px; min-height: 24px;
+}
+
+/* --- Tira de vista previa del alta ---------------------------------------
+   Vive aquí y no en el componente porque estas piezas las CREA el navegador
+   al elegir los archivos, y lo que crea JavaScript no lleva el atributo con
+   que Astro limita los estilos a un archivo: en el ámbito de la pantalla
+   saldrían sin formato. Es el mismo motivo por el que los mensajes de error
+   de campo viven en este archivo.
+   -------------------------------------------------------------------------- */
+.tira-previa {
+  list-style: none; padding: 0; margin: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px; align-items: start;
+}
+.tira-previa li {
+  border: 1px solid var(--linea); border-radius: 6px;
+  overflow: hidden; background: var(--blanco);
+}
+.tira-previa img {
+  width: 100%; aspect-ratio: 4 / 3; display: block;
+  object-fit: cover; object-position: top center;
+}
+.tira-previa .rotulo-orden {
+  display: block; padding: 6px 8px;
+  font-size: 0.6875rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--dorado-texto);
+}

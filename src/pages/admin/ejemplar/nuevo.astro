@@ -1,0 +1,179 @@
+---
+/* Alta de ejemplar. La misma página muestra el formulario y recibe el envío:
+   así los errores se pintan sobre lo ya capturado, sin perder nada.
+
+   REGLA DE LA CASA: no hay alta sin fotografía.
+   La fotografía viaja en el mismo envío que los datos. No se admite crear el
+   registro primero y subir la imagen después, porque ese "después" es
+   justamente donde se acumulan las fichas vacías. */
+export const prerender = false;
+
+import Administracion from '../../../layouts/Administracion.astro';
+import FormularioEjemplar from '../../../components/FormularioEjemplar.astro';
+import { obtenerCatalogos, clavesDe } from '../../../servidor/ejemplares-admin.js';
+import { TAMANOS, MAXIMO_POR_EJEMPLAR } from '../../../compartido/fotografias-medidas.js';
+import {
+  validar, crearEjemplarConFotografia, normalizarFolio, aplicarCentroDelPerfil,
+} from '../../../servidor/ejemplar-escritura.js';
+
+const persona = Astro.locals.persona;
+const catalogos = await obtenerCatalogos();
+const claves = clavesDe(catalogos);
+const ip = Astro.request.headers.get('cf-connecting-ip');
+
+let valores = {
+  condicion: 'DISPONIBLE',
+  semaforo: 'VERDE',
+  centro_origen_clave: persona.centro_clave ?? catalogos.centro[0]?.clave,
+};
+let errores = {};
+
+if (Astro.request.method === 'POST') {
+  const forma = await Astro.request.formData();
+
+  /* Las fotografías se apartan antes de armar `valores`: son archivos, no
+     campos de texto, y no tienen nada que hacer dentro de lo que se repinta
+     en el formulario.
+
+     Vienen en lugares numerados —`original-1`, `ficha-1`, … `miniatura-3`—,
+     uno por cada fotografía elegida. Un lugar cuenta sólo si llegaron sus
+     cuatro tamaños: medio lugar es una selección rota, no una fotografía. */
+  const lotes = [];
+  let lugarRoto = false;
+
+  for (let n = 1; n <= MAXIMO_POR_EJEMPLAR; n++) {
+    const grupo = new Map(TAMANOS.map((t) => [t.nombre, forma.get(`${t.nombre}-${n}`)]));
+    const llegaron = TAMANOS.filter(({ nombre }) => {
+      const archivo = grupo.get(nombre);
+      return archivo && typeof archivo !== 'string' && archivo.size > 0;
+    }).length;
+
+    if (llegaron === TAMANOS.length) lotes.push(grupo);
+    else if (llegaron > 0) lugarRoto = true;
+
+    for (const { nombre } of TAMANOS) forma.delete(`${nombre}-${n}`);
+  }
+
+  const datos = aplicarCentroDelPerfil(
+    persona, Object.fromEntries(forma), { esAlta: true }
+  );
+  valores = { ...valores, ...datos };
+
+  const revision = validar(datos, claves, { esAlta: true });
+  errores = revision.errores;
+
+  // Las fotografías se comprueban aquí, antes de tocar la base: si faltan, no
+  // se crea nada y no hay que deshacer nada.
+  if (lugarRoto) {
+    errores.fotografia = 'Una de las fotografías llegó incompleta. Vuelve a elegirlas.';
+  } else if (lotes.length === 0) {
+    errores.fotografia = 'Elige al menos una fotografía: no se da de alta un ejemplar sin ella.';
+  }
+
+  // Un guardado que falla nunca debe quedarse callado.
+  if (Object.keys(errores).length > 0 && !errores.general) {
+    errores.general = 'No se dio de alta: revisa los campos señalados.';
+  }
+
+  if (Object.keys(errores).length === 0) {
+    try {
+      const resultado = await crearEjemplarConFotografia(persona, revision.valores, lotes, ip);
+      if (resultado.errores) {
+        errores = resultado.errores;
+        if (!errores.general) {
+          errores.general = 'No se dio de alta: revisa los campos señalados.';
+        }
+      } else {
+        return Astro.redirect(`/admin/ejemplar/${resultado.slug}?alta=1`);
+      }
+    } catch (e) {
+      errores = { general: `No se pudo guardar: ${e.message}` };
+    }
+  }
+
+  // Deja el folio como quedará guardado, para que se vea antes de reenviar.
+  const folio = normalizarFolio(valores.folio_interno);
+  if (folio) valores.folio_interno = folio;
+}
+---
+<Administracion titulo="Alta de ejemplar" persona={persona} ancho="lectura">
+  <p class="migaja"><a href="/admin/catalogo">‹ Catálogo</a></p>
+  <h1>Alta de ejemplar</h1>
+  <p class="intro">
+    Los datos que captures aquí son los que verá la ciudadanía, salvo el folio, el centro
+    y el semáforo conductual, que son internos.
+  </p>
+
+  {/* Las condiciones van ARRIBA, no repartidas entre los campos. Quien captura
+      llega con el cuaderno del centro en la mano y necesita saber antes de
+      empezar si tiene lo que hace falta: si se entera de que la fotografía es
+      obligatoria cuando ya llenó ocho campos, el formulario le hizo perder el
+      viaje. */}
+  <section class="reglas" aria-labelledby="titulo-reglas">
+    <h2 id="titulo-reglas">Antes de capturar</h2>
+    <ol>
+      <li>
+        <strong>Fotografía obligatoria.</strong> De una a tres, y se eligen en este mismo
+        formulario. Sin ninguna no se crea el registro, porque una ficha sin imagen no
+        consigue adopciones.
+      </li>
+      <li>
+        <strong>Sólo ingresan ejemplares en semáforo verde.</strong> No se pregunta: se
+        da por hecho. Si más adelante su conducta cambia, no se edita el semáforo: se da
+        de baja desde su ficha, con motivo y nota.
+      </li>
+      <li>
+        <strong>Esterilizado, vacunado y desparasitado.</strong> El portal lo afirma
+        ante la ciudadanía sin excepción. Si el ejemplar no lo está, todavía no se
+        captura.
+      </li>
+      <li>
+        <strong>El folio es el del centro.</strong> Cinco dígitos, el mismo del registro
+        en papel. No puede repetirse dentro del mismo centro; el formulario te lo avisa
+        en cuanto lo escribas.
+      </li>
+      <li>
+        <strong>El nombre es para identificar.</strong> Se admiten repetidos, y quien
+        adopte podrá cambiarlo. La ficha pública se lo explica a la ciudadanía.
+      </li>
+      {persona.rol === 'CAPTURISTA' && (
+        <li>
+          <strong>Registras en tu centro.</strong> El alta queda a nombre de
+          {' '}{persona.centro_etiqueta} y no puedes dar de alta en otro.
+        </li>
+      )}
+      <li>
+        <strong>El alta queda asentada.</strong> La bitácora del ejemplar guarda quién lo
+        registró y cuándo, igual que cada cambio posterior.
+      </li>
+    </ol>
+  </section>
+
+  <FormularioEjemplar
+    modo="alta" valores={valores} errores={errores}
+    catalogos={catalogos} persona={persona} />
+</Administracion>
+
+<style>
+  h1 { color: var(--principal); font-size: 1.5rem; margin: 0 0 6px; }
+  .intro { color: var(--gris); margin: 0 0 12px; max-width: var(--ancho-lectura); }
+
+  /* Caja de color, como las de baja y borrado, pero en dorado: no advierte de
+     una consecuencia, enmarca las condiciones del trámite. El dorado es el
+     tono institucional que en el resto del sistema rotula y encuadra, no el
+     que alarma. */
+  .reglas {
+    max-width: var(--ancho-lectura);
+    margin: 4px 0 28px; padding: 18px 20px 20px; border-radius: 10px;
+    background: var(--crema);
+    border: 1px solid color-mix(in srgb, var(--dorado) 40%, transparent);
+    border-left: 3px solid var(--dorado);
+  }
+  .reglas h2 {
+    font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--dorado-texto); margin: 0 0 12px;
+  }
+  .reglas ol { margin: 0; padding-left: 1.2rem; display: grid; gap: 9px; }
+  .reglas li { color: var(--gris); font-size: 0.875rem; line-height: 1.5; }
+  .reglas strong { color: var(--texto); }
+</style>

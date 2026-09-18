@@ -1,0 +1,144 @@
+---
+/* Formulario de alta y edición de personal.
+ *
+ * Uno solo para las dos pantallas: los campos son los mismos y lo único que
+ * cambia es el texto del botón. Dos copias acabarían divergiendo.
+ */
+import { ROLES } from '../servidor/personal-admin.js';
+
+const { persona = null, centros, valores = {}, errores = {}, esAlta = false } = Astro.props;
+
+const v = (campo) => valores[campo] ?? persona?.[campo] ?? '';
+---
+<form method="POST" class="formulario">
+  {errores.general && <p class="error-general" role="alert">{errores.general}</p>}
+
+  <div class="campo">
+    <label for="nombre">Nombre de la persona <span class="req" aria-hidden="true">*</span></label>
+    <input type="text" id="nombre" name="nombre" maxlength="120" required
+           autocomplete="off" value={v('nombre')}
+           aria-invalid={errores.nombre ? 'true' : undefined}
+           aria-describedby={errores.nombre ? 'error-nombre' : undefined} />
+    {errores.nombre && <p class="error" id="error-nombre">{errores.nombre}</p>}
+  </div>
+
+  <div class="campo">
+    <label for="correo">Correo <span class="req" aria-hidden="true">*</span></label>
+    <input type="email" id="correo" name="correo" maxlength="150" required
+           autocomplete="off" value={v('correo')}
+           aria-invalid={errores.correo ? 'true' : undefined}
+           aria-describedby={errores.correo ? 'ayuda-correo error-correo' : 'ayuda-correo'} />
+    {/* Es el punto donde esto se rompe, y se rompe callado: la persona no
+        entra y nadie sabe por qué. Por eso la advertencia va aquí y no en un
+        manual. */}
+    <p class="ayuda" id="ayuda-correo">
+      Tiene que ser <strong>el mismo correo con el que esa persona entra a Llave CDMX</strong>,
+      sea institucional o personal. Si no coincide, no podrá entrar hasta que se corrija aquí.
+    </p>
+    {errores.correo && <p class="error" id="error-correo">{errores.correo}</p>}
+  </div>
+
+  <fieldset class="perfil">
+    <legend>Alcance <span class="req" aria-hidden="true">*</span></legend>
+    {errores.rol && <p class="error" id="error-rol">{errores.rol}</p>}
+
+    <ul class="opciones">
+      {ROLES.map((r) => (
+        <li>
+          <label>
+            <input type="radio" name="rol" value={r.clave} required
+                   checked={v('rol') === r.clave} />
+            <span>
+              <span class="etiqueta">{r.etiqueta}</span>
+              <span class="nota">{r.nota}</span>
+            </span>
+          </label>
+        </li>
+      ))}
+    </ul>
+  </fieldset>
+
+  {/* El centro sólo tiene sentido para un capturista, y la base lo impone con
+      una restricción propia: una administración global no pertenece a ningún
+      centro. El guion de abajo lo muestra y lo esconde; el servidor lo ignora
+      si el perfil es global, porque una casilla del navegador no es garantía. */}
+  <div class="campo" id="caja-centro" hidden={v('rol') !== 'CAPTURISTA'}>
+    <label for="centro_clave">Centro <span class="req" aria-hidden="true">*</span></label>
+    <select id="centro_clave" name="centro_clave"
+            aria-invalid={errores.centro_clave ? 'true' : undefined}
+            aria-describedby={errores.centro_clave ? 'error-centro' : undefined}>
+      <option value="">Elige…</option>
+      {centros.map((c) => (
+        <option value={c.clave} selected={v('centro_clave') === c.clave}>{c.etiqueta}</option>
+      ))}
+    </select>
+    {errores.centro_clave && <p class="error" id="error-centro">{errores.centro_clave}</p>}
+  </div>
+
+  <div class="acciones">
+    <button type="submit" class="boton boton-solido">
+      {esAlta ? 'Dar de alta' : 'Guardar cambios'}
+    </button>
+    <a class="boton boton-linea" href="/admin/personal">Cancelar</a>
+  </div>
+</form>
+
+<script>
+  /* El centro aparece y desaparece según el perfil. Sin esto, la pantalla
+     pediría un centro a alguien que por definición no tiene. */
+  const caja = document.getElementById('caja-centro');
+  const lista = document.getElementById('centro_clave');
+
+  for (const opcion of document.querySelectorAll('input[name="rol"]')) {
+    opcion.addEventListener('change', () => {
+      const esCapturista = opcion.value === 'CAPTURISTA' && opcion.checked;
+      caja.hidden = !esCapturista;
+      lista.required = esCapturista;
+      if (!esCapturista) lista.value = '';
+    });
+  }
+
+  // Estado inicial coherente al cargar.
+  const puesto = document.querySelector('input[name="rol"]:checked');
+  if (lista) lista.required = puesto?.value === 'CAPTURISTA';
+</script>
+
+<style>
+  .formulario { max-width: 42rem; }
+
+
+  .campo { margin-bottom: 20px; }
+  .campo[hidden] { display: none; }
+  label { display: block; font-size: 0.8125rem; font-weight: 500; color: var(--texto); margin-bottom: 5px; }
+  input[type="text"], input[type="email"], select {
+    width: 100%; padding: 10px 12px; font-family: var(--cuerpo); font-size: 0.9375rem;
+    border: 1px solid var(--linea-campo); border-radius: 6px; background: var(--blanco);
+    color: var(--texto);
+  }
+  [aria-invalid="true"] { border-color: var(--alto); border-width: 2px; }
+
+  .ayuda { margin: 6px 0 0; font-size: 0.8125rem; color: var(--gris); }
+
+  .perfil { border: 1px solid var(--linea); border-radius: 8px;
+            padding: 16px 18px 18px; margin: 0 0 20px; }
+  .perfil legend {
+    font-size: 0.8125rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--gris); padding: 0 8px; font-weight: 700;
+  }
+  .opciones { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .opciones label {
+    display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;
+    border: 1px solid var(--linea-campo); border-radius: 8px; padding: 10px 12px;
+    cursor: pointer; margin: 0; font-weight: 400;
+  }
+  .opciones label:hover { background: var(--crema); }
+  .opciones label:has(input:checked) {
+    border-color: var(--principal); background: var(--crema);
+    box-shadow: inset 3px 0 0 var(--principal);
+  }
+  .opciones input { margin-top: 3px; accent-color: var(--principal); width: 18px; height: 18px; }
+  .opciones .etiqueta { display: block; font-weight: 500; color: var(--texto); }
+  .opciones .nota { display: block; font-size: 0.8125rem; color: var(--gris); margin-top: 2px; }
+
+  .acciones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
+</style>

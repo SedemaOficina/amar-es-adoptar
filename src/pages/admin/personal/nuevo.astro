@@ -1,0 +1,51 @@
+---
+/* Alta de una persona con acceso al sistema. */
+export const prerender = false;
+
+import Administracion from '../../../layouts/Administracion.astro';
+import FormularioPersona from '../../../components/FormularioPersona.astro';
+import { obtenerCatalogos } from '../../../servidor/ejemplares-admin.js';
+import { validar, crearPersona } from '../../../servidor/personal-admin.js';
+
+const persona = Astro.locals.persona;
+const ip = Astro.request.headers.get('cf-connecting-ip');
+const catalogos = await obtenerCatalogos();
+
+let errores = {};
+let valores = {};
+
+if (Astro.request.method === 'POST') {
+  const datos = Object.fromEntries(await Astro.request.formData());
+  valores = { ...datos };
+
+  const revision = await validar(datos);
+  errores = revision.errores;
+
+  if (Object.keys(errores).length === 0) {
+    const hecho = await crearPersona(persona, revision.valores, ip);
+    if (hecho.errores) errores = hecho.errores;
+    else return Astro.redirect(`/admin/personal/${hecho.id}?alta=1`);
+  }
+
+  if (Object.keys(errores).length > 0 && !errores.general) {
+    errores.general = 'No se dio de alta: revisa lo que está señalado abajo.';
+  }
+}
+---
+<Administracion titulo="Dar de alta personal" persona={persona} ancho="lectura">
+  <p class="migaja"><a href="/admin/personal">‹ Personal</a></p>
+  <h1>Dar de alta a una persona</h1>
+
+  <p class="intro">
+    La persona queda autorizada de inmediato, pero el sistema todavía no la conoce: la
+    reconocerá la primera vez que entre con Llave CDMX usando el correo que registres aquí.
+  </p>
+
+  <FormularioPersona centros={catalogos.centro} valores={valores}
+                     errores={errores} esAlta={true} />
+</Administracion>
+
+<style>
+  h1 { color: var(--principal); font-size: 1.5rem; margin: 0 0 6px; }
+  .intro { margin: 0 0 24px; color: var(--gris); font-size: 0.875rem; max-width: 42rem; }
+</style>

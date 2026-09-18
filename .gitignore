@@ -24,6 +24,24 @@ pnpm-debug.log*
 .dev.vars.*
 !.dev.vars.ejemplo
 
+# Respaldos de la base. Se generan con `wrangler d1 export` antes de tocar
+# producción. No se versionan: contienen datos y crecen sin control. Cuando
+# haya información real, además serían datos personales dentro del repositorio.
+respaldos/
+
+# Lo descartado. La convención del proyecto es que nada se borra del disco: se
+# mueve aquí y Liber lo vacía a mano. Pero es un cesto de basura, no parte del
+# proyecto, y no tiene por qué viajar al repositorio ni a la entrega.
+a borrar/
+
+# Carga inicial del padrón. Ni las fotografías reales ni lo que el guion genera
+# a partir de ellas entran al repositorio: son datos de operación, pesan, y la
+# migración resultante se mueve a mano a `migraciones/` cuando está revisada.
+# La carpeta `prueba/` sí se versiona —es el ensayo del guion—, su salida no.
+carga-inicial/fotografias/
+carga-inicial/salida/
+carga-inicial/prueba/salida/
+
 # Archivos del sistema operativo
 .DS_Store
 Thumbs.db

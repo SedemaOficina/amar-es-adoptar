@@ -80,6 +80,25 @@ const personal = haySimulado() ? await listarPersonalDePrueba() : [];
             </li>
           ))}
         </ul>
+
+        {/* Segundo camino de desarrollo: entrar POR CORREO, que es como
+            entrará la gente con Llave CDMX. Sirve para probar la atadura del
+            primer ingreso —dar de alta a alguien en Personal y entrar con su
+            correo— sin tener el proveedor montado. */}
+        <div class="por-correo">
+          <h2>Entrar con un correo</h2>
+          <p>
+            Simula el primer ingreso con Llave CDMX. El sistema inventa un identificador
+            nuevo, como haría el proveedor, y busca a quién corresponde ese correo.
+            Sólo entra si esa persona ya está dada de alta en Personal.
+          </p>
+          <form method="POST" action="/admin/callback" class="linea">
+            <label for="dev_correo">Correo</label>
+            <input type="email" id="dev_correo" name="dev_correo" required
+                   autocomplete="off" placeholder="persona@ejemplo.com" />
+            <button type="submit" class="boton boton-linea">Entrar</button>
+          </form>
+        </div>
       </>
     ) : (
       <p class="aviso">
@@ -91,11 +110,29 @@ const personal = haySimulado() ? await listarPersonalDePrueba() : [];
 </Base>
 
 <style>
+  .por-correo {
+    margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--linea);
+  }
+  .por-correo h2 {
+    font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--gris); margin: 0 0 8px;
+  }
+  .por-correo p { margin: 0 0 14px; font-size: 0.8125rem; color: var(--gris); }
+  .por-correo .linea { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .por-correo label {
+    display: block; font-size: 0.75rem; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--gris-claro); margin-bottom: 5px;
+  }
+  .por-correo input {
+    padding: 10px 12px; font-family: var(--cuerpo); font-size: 0.9375rem;
+    border: 1px solid var(--linea-campo); border-radius: 6px; min-width: 16rem;
+  }
+
   .acceso { padding-block: 32px 64px; max-width: 34rem; }
-  h1 { color: var(--guinda); font-size: 1.625rem; margin: 0 0 20px; }
+  h1 { color: var(--principal); font-size: 1.625rem; margin: 0 0 20px; }
 
   .aviso {
-    border-left: 3px solid var(--guinda); background: var(--crema);
+    border-left: 3px solid var(--principal); background: var(--crema);
     padding: 12px 14px; margin: 0 0 20px; color: var(--gris); font-size: 0.9375rem;
   }
   .nota {
@@ -109,7 +146,7 @@ const personal = haySimulado() ? await listarPersonalDePrueba() : [];
     background: var(--blanco); border: 1px solid var(--linea); border-radius: 8px;
     padding: 14px 16px; font-family: var(--cuerpo);
   }
-  .personal button:hover { border-color: var(--guinda); }
+  .personal button:hover { border-color: var(--principal); }
   .personal .nombre { display: block; font-weight: 500; color: var(--texto); }
   .personal .detalle { display: block; font-size: 0.8125rem; color: var(--gris-claro); margin-top: 2px; }
 </style>

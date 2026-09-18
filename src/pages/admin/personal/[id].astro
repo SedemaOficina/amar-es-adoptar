@@ -1,0 +1,198 @@
+---
+/* Ficha de una persona con acceso: edición, acceso e historial.
+ *
+ * Tres acciones en una pantalla, repartidas por el campo `accion` del
+ * formulario, y el cuerpo de la petición se lee UNA sola vez porque es un
+ * flujo y no se puede leer dos.
+ */
+export const prerender = false;
+
+import Administracion from '../../../layouts/Administracion.astro';
+import FormularioPersona from '../../../components/FormularioPersona.astro';
+import { obtenerCatalogos } from '../../../servidor/ejemplares-admin.js';
+import {
+  validar, actualizarPersona, cambiarAcceso, obtenerPersona, historial,
+} from '../../../servidor/personal-admin.js';
+
+const quien = Astro.locals.persona;
+const { id } = Astro.params;
+const ip = Astro.request.headers.get('cf-connecting-ip');
+
+let ficha = await obtenerPersona(id);
+if (!ficha) return new Response(null, { status: 404 });
+
+const catalogos = await obtenerCatalogos();
+
+let errores = {};
+let valores = {};
+let aviso = Astro.url.searchParams.get('alta') === '1'
+  ? 'Persona dada de alta. Podrá entrar en cuanto use su correo en Llave CDMX.'
+  : null;
+
+if (Astro.request.method === 'POST') {
+  const datos = Object.fromEntries(await Astro.request.formData());
+
+  if (datos.accion === 'acceso') {
+    const hecho = await cambiarAcceso(quien, id, datos.activo === '1', ip);
+    if (hecho.errores) errores = hecho.errores;
+    else {
+      ficha = await obtenerPersona(id);
+      aviso = datos.activo === '1'
+        ? 'Se le devolvió el acceso.'
+        : 'Se le retiró el acceso. Su historial se conserva.';
+    }
+  } else {
+    valores = { ...datos };
+    const revision = await validar(datos);
+    errores = revision.errores;
+
+    if (Object.keys(errores).length === 0) {
+      const hecho = await actualizarPersona(quien, id, revision.valores, ip);
+      if (hecho.errores) errores = hecho.errores;
+      else {
+        ficha = await obtenerPersona(id);
+        valores = {};
+        aviso = 'Cambios guardados.';
+      }
+    }
+
+    if (Object.keys(errores).length > 0 && !errores.general) {
+      errores.general = 'No se guardó: revisa lo que está señalado abajo.';
+    }
+  }
+}
+
+const movimientos = await historial(id);
+const esUnoMismo = Number(ficha.id) === Number(quien.id);
+
+const fecha = (iso) =>
+  new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+---
+<Administracion titulo={ficha.nombre} persona={quien} ancho="lectura">
+  <p class="migaja"><a href="/admin/personal">‹ Personal</a></p>
+  <h1>{ficha.nombre}</h1>
+  <p class="correo">{ficha.correo}</p>
+
+  {aviso && <p class="aviso" role="status">{aviso}</p>}
+
+  {ficha.pendiente && (
+    <p class="espera">
+      <strong>Todavía no ha entrado nunca.</strong> El sistema la reconocerá la primera vez
+      que entre con este correo. Si se equivocó el correo, corrígelo aquí y vuelve a
+      intentarlo: no hace falta darla de alta otra vez.
+    </p>
+  )}
+
+  {ficha.activo === 0 && (
+    <p class="sin-acceso"><strong>Sin acceso.</strong> No puede entrar al sistema.</p>
+  )}
+
+  <FormularioPersona persona={ficha} centros={catalogos.centro}
+                     valores={valores} errores={errores} />
+
+  <section class="acceso">
+    <h2>{ficha.activo === 1 ? 'Retirar el acceso' : 'Devolver el acceso'}</h2>
+
+    {ficha.activo === 1 ? (
+      <>
+        <p>
+          La persona deja de poder entrar. <strong>No se borra</strong>: su nombre sigue
+          apareciendo en el historial de todo lo que hizo, que es lo que da valor a la
+          bitácora. Se le puede devolver el acceso cuando haga falta.
+        </p>
+        {esUnoMismo ? (
+          <p class="candado">
+            No puedes retirarte el acceso a ti mismo. Si lo hicieras, la pantalla que lo
+            arregla es esta misma.
+          </p>
+        ) : (
+          <form method="POST">
+            <input type="hidden" name="accion" value="acceso" />
+            <input type="hidden" name="activo" value="0" />
+            {/* Ámbar y no rojo: retirar el acceso NO borra a nadie y se
+                puede devolver. El rojo queda para lo que no se deshace. */}
+            <button type="submit" class="boton boton-cuidado">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M16 17l5-5-5-5M21 12H9" />
+                <path d="M12 19v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v1" />
+              </svg>
+              Retirar el acceso
+            </button>
+          </form>
+        )}
+      </>
+    ) : (
+      <form method="POST">
+        <input type="hidden" name="accion" value="acceso" />
+        <input type="hidden" name="activo" value="1" />
+        <button type="submit" class="boton boton-linea">Devolver el acceso</button>
+      </form>
+    )}
+  </section>
+
+  <section class="historial">
+    <h2>Historial</h2>
+    {movimientos.length === 0 ? (
+      <p class="vacio">Sin movimientos registrados.</p>
+    ) : (
+      <ul>
+        {movimientos.map((m) => (
+          <li>
+            <span class="cuando">{fecha(m.ocurrido_en)}</span>
+            <span class="que">
+              {m.accion === 'ALTA' && m.campo === null ? 'Alta' :
+               m.accion === 'ALTA' ? 'Se le devolvió el acceso' :
+               m.accion === 'BAJA' ? 'Se le retiró el acceso' :
+               m.campo === 'oidc_sub' ? 'Primer ingreso: quedó reconocida' :
+               `Cambio de ${m.campo}`}
+              {m.campo && m.campo !== 'activo' && m.campo !== 'oidc_sub' && (
+                <span class="detalle">{m.valor_anterior ?? '—'} → {m.valor_nuevo ?? '—'}</span>
+              )}
+            </span>
+            <span class="quien">{m.quien ?? '—'}</span>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+</Administracion>
+
+<style>
+
+  h1 { color: var(--principal); font-size: 1.5rem; margin: 0; overflow-wrap: anywhere; }
+  .correo { margin: 2px 0 18px; font-family: ui-monospace, monospace;
+            font-size: 0.8125rem; color: var(--gris-claro); overflow-wrap: anywhere; }
+
+  .aviso { background: var(--exito-fondo); border-left: 3px solid var(--exito);
+           padding: 12px 14px; margin: 0 0 18px; color: var(--gris); font-size: 0.875rem; }
+  .espera { background: var(--atencion-fondo); border-left: 3px solid var(--atencion);
+            padding: 12px 14px; margin: 0 0 18px; color: var(--gris); font-size: 0.875rem;
+            max-width: 42rem; }
+  .sin-acceso { background: var(--inactivo-fondo); border-left: 3px solid var(--inactivo);
+                padding: 12px 14px; margin: 0 0 18px; color: var(--gris); font-size: 0.875rem; }
+
+  section { border-top: 1px solid var(--linea); margin-top: 44px; padding-top: 24px;
+            max-width: var(--ancho-lectura); }
+  section h2 {
+    font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--gris); margin: 0 0 12px;
+  }
+  section p { margin: 0 0 14px; font-size: 0.875rem; color: var(--gris); }
+  .candado { color: var(--gris-claro); font-style: italic; }
+
+
+  .historial ul { list-style: none; margin: 0; padding: 0; }
+  .historial li {
+    display: grid; grid-template-columns: 11rem 1fr auto; gap: 12px;
+    padding: 9px 0; border-bottom: 1px solid var(--linea); font-size: 0.8125rem;
+  }
+  @media (max-width: 640px) {
+    .historial li { grid-template-columns: 1fr; gap: 2px; }
+  }
+  .cuando { color: var(--gris-claro); }
+  .que { color: var(--texto); }
+  .detalle { display: block; color: var(--gris-claro); overflow-wrap: anywhere; }
+  .quien { color: var(--gris-claro); text-align: right; }
+  .vacio { color: var(--gris-claro); }
+</style>

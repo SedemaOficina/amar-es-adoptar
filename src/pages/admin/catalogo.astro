@@ -1,0 +1,378 @@
+---
+/* Catálogo de administración.
+ *
+ * A diferencia del catálogo público, aquí el filtrado ocurre en el servidor y
+ * viaja en la dirección. Tres razones: las direcciones se pueden guardar y
+ * compartir entre el personal, funciona aunque falle el JavaScript, y no
+ * obliga a mandar al navegador los mil registros que habrá con datos reales.
+ */
+export const prerender = false;
+
+import Administracion from '../../layouts/Administracion.astro';
+import {
+  buscarEjemplares, obtenerCatalogos, clavesDe, POR_PAGINA, ORDENES,
+} from '../../servidor/ejemplares-admin.js';
+import { urlFoto } from '../../servidor/fotografias.js';
+
+const persona = Astro.locals.persona;
+const p = Astro.url.searchParams;
+
+const filtros = {
+  centro: p.get('centro') ?? '',
+  condicion: p.get('condicion') ?? '',
+  edad: p.get('edad') ?? '',
+  sexo: p.get('sexo') ?? '',
+  talla: p.get('talla') ?? '',
+  texto: p.get('texto') ?? '',
+  orden: p.get('orden') ?? '',
+  pagina: p.get('pagina') ?? '1',
+};
+
+let catalogos = null;
+let resultado = null;
+let error = null;
+
+try {
+  catalogos = await obtenerCatalogos();
+  resultado = await buscarEjemplares(persona, filtros, clavesDe(catalogos));
+} catch (e) {
+  error = e.message;
+}
+
+const esGlobal = persona.rol === 'ADMIN_GLOBAL';
+const hayFiltros = Boolean(
+  filtros.condicion || filtros.edad || filtros.sexo || filtros.talla ||
+  filtros.texto || (esGlobal && filtros.centro)
+);
+
+/** Arma la dirección de otra página conservando los filtros puestos. */
+function direccionPagina(n) {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(filtros)) if (v && k !== 'pagina') q.set(k, v);
+  if (n > 1) q.set('pagina', String(n));
+  const cadena = q.toString();
+  return cadena ? `/admin/catalogo?${cadena}` : '/admin/catalogo';
+}
+
+const CONDICIONES = [
+  { clave: 'DISPONIBLE', etiqueta: 'Disponible' },
+  { clave: 'EN_PROCESO', etiqueta: 'En proceso' },
+  { clave: 'ADOPTADO', etiqueta: 'Adoptado' },
+  { clave: 'BAJA', etiqueta: 'Baja' },
+];
+---
+<Administracion titulo="Catálogo" persona={persona}>
+  <div class="encabezado">
+    <div>
+      <h1>Catálogo de ejemplares</h1>
+      <p class="alcance">
+        {esGlobal
+          ? 'Ves los ejemplares de los tres centros.'
+          : `Ves únicamente los ejemplares de ${persona.centro_etiqueta}.`}
+      </p>
+    </div>
+    <a class="boton boton-solido" href="/admin/ejemplar/nuevo">Nuevo ejemplar</a>
+  </div>
+
+  {error && <p class="error"><strong>No se pudo consultar la base.</strong> {error}</p>}
+
+  {catalogos && (
+    <form class="filtros" method="GET" action="/admin/catalogo">
+      <div class="campos">
+        <div class="ancho">
+          <label for="f-texto">Nombre o folio</label>
+          <input id="f-texto" name="texto" type="search" value={filtros.texto}
+                 placeholder="Buscar" autocomplete="off" />
+        </div>
+
+        {esGlobal && (
+          <div>
+            <label for="f-centro">Centro</label>
+            <select id="f-centro" name="centro" data-envia-al-cambiar>
+              <option value="">Todos</option>
+              {catalogos.centro.map((v) => (
+                <option value={v.clave} selected={filtros.centro === v.clave}>{v.etiqueta}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div>
+          <label for="f-condicion">Condición</label>
+          <select id="f-condicion" name="condicion" data-envia-al-cambiar>
+            <option value="">Todas</option>
+            {CONDICIONES.map((v) => (
+              <option value={v.clave} selected={filtros.condicion === v.clave}>{v.etiqueta}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label for="f-edad">Edad</label>
+          <select id="f-edad" name="edad" data-envia-al-cambiar>
+            <option value="">Todas</option>
+            {catalogos.edad.map((v) => (
+              <option value={v.clave} selected={filtros.edad === v.clave}>{v.etiqueta}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label for="f-sexo">Sexo</label>
+          <select id="f-sexo" name="sexo" data-envia-al-cambiar>
+            <option value="">Todos</option>
+            {catalogos.sexo.map((v) => (
+              <option value={v.clave} selected={filtros.sexo === v.clave}>{v.etiqueta}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label for="f-talla">Talla</label>
+          <select id="f-talla" name="talla" data-envia-al-cambiar>
+            <option value="">Todas</option>
+            {catalogos.talla.map((v) => (
+              <option value={v.clave} selected={filtros.talla === v.clave}>{v.etiqueta}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label for="f-orden">Ordenar por</label>
+          <select id="f-orden" name="orden" data-envia-al-cambiar>
+            {ORDENES.map((o) => (
+              <option value={o.clave} selected={resultado?.orden === o.clave}>{o.etiqueta}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div class="acciones">
+        <button type="submit" class="boton boton-solido">Buscar</button>
+        {hayFiltros && <a class="boton boton-linea" href="/admin/catalogo">Limpiar</a>}
+      </div>
+    </form>
+  )}
+
+  {resultado && (
+    <>
+      <p class="conteo" role="status">
+        {resultado.total === 0
+          ? 'Ningún ejemplar coincide con la búsqueda.'
+          : `${resultado.total} ${resultado.total === 1 ? 'ejemplar' : 'ejemplares'}` +
+            (resultado.paginas > 1
+              ? ` · mostrando ${resultado.desde + 1} a ${resultado.desde + resultado.ejemplares.length}`
+              : '')}
+      </p>
+
+      <ul class="lista">
+        {resultado.ejemplares.map((e) => (
+          <li class="renglon">
+            <img class="miniatura" src={urlFoto(e.miniatura)}
+                 alt={`Fotografía de ${e.nombre}`} width="320" height="240" loading="lazy" />
+
+            <div class="identidad">
+              {/* La clave del registro es centro de ORIGEN + folio y no cambia
+                  nunca (D-05). Antes se pintaba el centro actual: en un ejemplar
+                  trasladado la clave cambiaba de renglón a ficha, y dos ejemplares
+                  de centros distintos pueden compartir folio. Dónde está hoy lo
+                  dice el renglón de abajo. */}
+              <p class="folio">{e.centro_origen_clave}{' · '}{e.folio_interno}</p>
+              <p class="nombre"><a href={`/admin/ejemplar/${e.slug}`}>{e.nombre}</a></p>
+              <p class="centro">
+                {e.centro_etiqueta}
+                {e.centro_origen_clave !== e.centro_actual_clave && (
+                  <span class="trasladado"> · trasladado desde {e.centro_origen_clave}</span>
+                )}
+              </p>
+            </div>
+
+            <div class="atributos">
+              <span>{e.edad_etiqueta}</span>
+              <span>{e.sexo_etiqueta}</span>
+              <span>{e.talla_etiqueta}</span>
+            </div>
+
+            <div class="marcas">
+              <span class={`condicion ${e.condicion.toLowerCase()}`}>
+                {e.condicion === 'EN_PROCESO' ? 'En proceso'
+                  : e.condicion === 'ADOPTADO' ? 'Adoptado'
+                  : e.condicion === 'BAJA' ? 'Baja' : 'Disponible'}
+              </span>
+              {/* Sin fotografía no aparece en el portal, por regla del programa.
+                  Se marca aquí para que la ausencia no sea un misterio sino una
+                  tarea: es lo único que separa a ese ejemplar de estar publicado. */}
+              {e.fotografias === 0 && !['ADOPTADO', 'BAJA'].includes(e.condicion) && (
+                <span class="sin-foto" title="No aparece en el portal público hasta que tenga al menos una fotografía">
+                  Sin fotografía
+                </span>
+              )}
+              {/* El amarillo también despublica. Se marca por la misma razón:
+                  un ejemplar que desapareció del portal tiene que poder
+                  explicarse desde este listado, sin abrir su ficha. */}
+              {e.semaforo === 'AMARILLO' && !['ADOPTADO', 'BAJA'].includes(e.condicion) && (
+                <span class="sin-foto" title="En semáforo amarillo no aparece en el portal público">
+                  Amarillo
+                </span>
+              )}
+              {e.solicitudes > 0 && (
+                <a class="solicitudes" href={`/admin/solicitudes?texto=${e.folio_interno}`}
+                   title="Ver las solicitudes de este ejemplar">
+                  {e.solicitudes} {e.solicitudes === 1 ? 'solicitud' : 'solicitudes'}
+                </a>
+              )}
+            </div>
+
+            {/* Los dos como botones. El icono aquí NO contradice la regla de que
+                sólo lo lleva lo que quita, cambia estado o produce un archivo:
+                en una lista de veinte renglones iguales, el icono deja de ser
+                adorno y se vuelve punto de referencia para el ojo. El de la
+                ficha pública, además, avisa de algo real: se abre fuera. */}
+            <div class="enlaces">
+              <a class="boton boton-linea chico" href={`/admin/ejemplar/${e.slug}`}>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                </svg>
+                Editar
+              </a>
+              {!['ADOPTADO', 'BAJA'].includes(e.condicion) && (
+                <a class="boton boton-linea chico" href={`/seres-sintientes/${e.slug}`}
+                   target="_blank" rel="noopener">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                       stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <path d="M15 3h6v6M10 14L21 3" />
+                  </svg>
+                  Ficha pública
+                </a>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {resultado.paginas > 1 && (
+        <nav class="paginacion" aria-label="Paginación del catálogo">
+          {resultado.pagina > 1 && (
+            <a href={direccionPagina(resultado.pagina - 1)} rel="prev">‹ Anterior</a>
+          )}
+          <span class="posicion">Página {resultado.pagina} de {resultado.paginas}</span>
+          {resultado.pagina < resultado.paginas && (
+            <a href={direccionPagina(resultado.pagina + 1)} rel="next">Siguiente ›</a>
+          )}
+        </nav>
+      )}
+    </>
+  )}
+</Administracion>
+
+<script>
+  /* Cada lista se aplica al soltar la opción: elegir un valor y tener que
+     apretar además un botón es un paso que nadie espera dar.
+
+     El botón se queda por dos razones: el campo de texto no puede enviarse en
+     cada tecla, y sin JavaScript es lo único que haría funcionar la pantalla.
+     Es la misma degradación aceptable del portal público. */
+  for (const lista of document.querySelectorAll('[data-envia-al-cambiar]')) {
+    lista.addEventListener('change', () => lista.form.submit());
+  }
+</script>
+
+<style>
+  .encabezado {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+  }
+  h1 { color: var(--principal); font-size: 1.5rem; margin: 0 0 4px; }
+  .nombre a { color: var(--texto); text-decoration: none; }
+  .nombre a:hover { color: var(--principal); text-decoration: underline; }
+  .alcance { color: var(--gris); margin: 0 0 22px; font-size: 0.9375rem; }
+  .error { color: var(--alto); border-left: 3px solid var(--alto); padding-left: 14px; }
+
+  .filtros { border: 1px solid var(--linea); border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+  .campos { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .campos .ancho { grid-column: 1 / -1; }
+  @media (min-width: 720px) { .campos .ancho { grid-column: span 2; } }
+  .campos label {
+    display: block; font-size: 0.6875rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--gris-claro); margin-bottom: 4px;
+  }
+  .campos select, .campos input {
+    width: 100%; padding: 9px 11px; font-family: var(--cuerpo); font-size: 0.9375rem;
+    border: 1px solid var(--linea-campo); border-radius: 6px; background: var(--blanco); color: var(--texto);
+  }
+  .acciones { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+
+  .conteo { color: var(--gris); font-size: 0.875rem; margin: 0 0 14px; }
+
+  .lista { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .renglon {
+    display: grid; gap: 8px 16px; align-items: center;
+    grid-template-columns: 64px 1fr;
+    border: 1px solid var(--linea); border-radius: 10px; padding: 12px 14px;
+  }
+  @media (min-width: 860px) {
+    .renglon { grid-template-columns: 64px minmax(0, 1.4fr) minmax(0, 1fr) auto auto; }
+  }
+
+  .miniatura {
+    width: 64px; aspect-ratio: 4 / 3; object-fit: cover; object-position: top center;
+    border-radius: 6px; background: var(--crema);
+  }
+
+  .identidad p { margin: 0; }
+  .folio {
+    font-family: ui-monospace, monospace; font-size: 0.75rem;
+    letter-spacing: 0.04em; color: var(--gris-claro);
+  }
+  .nombre { font-family: var(--titulos); font-weight: 700; color: var(--texto); overflow-wrap: anywhere; }
+  .centro { font-size: 0.8125rem; color: var(--gris); }
+  .trasladado { color: var(--dorado-texto); }
+
+  .atributos { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.8125rem; color: var(--gris); }
+
+  .marcas { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  /* El número de solicitudes es un enlace: ver el interés que despertó un
+     ejemplar y no poder abrirlo sería una frustración gratuita. */
+  .solicitudes {
+    font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase;
+    border: 1px solid var(--alto); border-radius: 999px; padding: 3px 10px;
+    background: var(--alto-fondo); color: var(--alto); text-decoration: none;
+    white-space: nowrap;
+  }
+  .solicitudes:hover { background: var(--alto); color: var(--blanco); }
+
+  .condicion, .sin-foto {
+    font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px; border: 1px solid var(--linea); color: var(--gris);
+  }
+  /* Ámbar, no rojo: no es un error, es algo que falta hacer. */
+  .sin-foto {
+    border-color: var(--atencion); background: var(--atencion-fondo);
+    color: var(--atencion); font-weight: 600;
+  }
+  /* Mismo significado, mismo color que en el formulario: verde abre paso,
+     ámbar pide cuidado, gris está fuera del catálogo público. */
+  .condicion.disponible { border-color: var(--exito); background: var(--exito-fondo); color: var(--gris); }
+  .condicion.en_proceso { border-color: var(--atencion); background: var(--atencion-fondo); color: var(--gris); }
+  .condicion.adoptado,
+  .condicion.baja       { border-color: var(--linea); background: var(--inactivo-fondo); color: var(--inactivo); }
+
+  .enlaces { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  /* Variante compacta del botón, sólo para listas: veinte botones de tamaño
+     normal en una pantalla pesan demasiado. Conserva 32 px de alto, por
+     encima del mínimo de la norma. */
+  .enlaces .chico {
+    font-size: 0.8125rem; padding: 6px 12px; min-height: 32px;
+    white-space: nowrap; justify-content: flex-start;
+  }
+  .enlaces .chico svg { margin-right: 6px; }
+
+  .paginacion {
+    display: flex; align-items: center; justify-content: center; gap: 18px;
+    margin-top: 24px; font-size: 0.9375rem;
+  }
+  .posicion { color: var(--gris); }
+</style>

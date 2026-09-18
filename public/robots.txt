@@ -1,0 +1,35 @@
+# ---------------------------------------------------------------------------
+# SITIO EN DESARROLLO — no se indexa.
+#
+# Mientras el portal no esté publicado en su dominio institucional, todo lo
+# que se ve aquí son datos ficticios: treinta perros inventados y solicitudes
+# de prueba. Que un buscador los recoja significaría que alguien encuentre en
+# Google una ficha de adopción de un animal que no existe, con el escudo del
+# Gobierno de la Ciudad de México encima.
+#
+# Esta es además la única barrera real hoy: el sitio vive en una dirección
+# workers.dev que no se puede apagar todavía, porque es la única que hay
+# (trámite S-02 con ADIP para el subdominio bajo cdmx.gob.mx).
+#
+# QUÉ HACER EL DÍA DEL LANZAMIENTO
+# Sustituir todo este archivo por lo que está comentado al final: abre el
+# portal público a los buscadores y mantiene cerrada la administración y el
+# trámite de adopción, que no tienen por qué aparecer en resultados.
+#
+# Un robots.txt NO es un control de acceso: es una petición que los
+# buscadores serios respetan y que cualquiera puede ignorar. Lo que impide de
+# verdad el paso a la administración es la autenticación.
+# ---------------------------------------------------------------------------
+
+User-agent: *
+Disallow: /
+
+
+# --- AL PUBLICAR, DEJAR ÚNICAMENTE ESTO ------------------------------------
+#
+# User-agent: *
+# Allow: /
+# Disallow: /admin
+# Disallow: /adoptar
+#
+# Sitemap: https://<subdominio-institucional>/sitemap-index.xml

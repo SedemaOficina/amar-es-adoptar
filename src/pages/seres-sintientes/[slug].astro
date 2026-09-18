@@ -3,23 +3,46 @@
    Tiene dirección propia y no es sólo una ventana sobre el catálogo: el
    viaje a Llave CDMX sale del sitio y tiene que volver a una dirección
    que conserve de qué ejemplar se trataba. */
-import Base from '../../layouts/Base.astro';
-import { obtenerEjemplares, etiqueta, portada } from '../../datos/ejemplares.js';
+export const prerender = false;
 
-export function getStaticPaths() {
-  return obtenerEjemplares().map((ejemplar) => ({
-    params: { slug: ejemplar.slug },
-    props: { ejemplar },
-  }));
+import Base from '../../layouts/Base.astro';
+import TarjetaEjemplar from '../../components/TarjetaEjemplar.astro';
+import {
+  obtenerParaVistaPublica, visibleEnCatalogo, fotosDe, esperaDe, otrosEsperando,
+} from '../../servidor/ejemplares-publico.js';
+import { urlFoto } from '../../servidor/fotografias.js';
+
+const { slug } = Astro.params;
+
+const ejemplar = await obtenerParaVistaPublica(slug);
+
+/* Un ejemplar adoptado ya no tiene ficha pública: ya encontró hogar y
+   mostrarla sólo genera solicitudes que hay que rechazar. Lo mismo para uno
+   dado de baja, que salió del programa. Responde como inexistente, igual que
+   un slug que nunca existió. */
+if (!visibleEnCatalogo(ejemplar)) {
+  return new Response(null, { status: 404 });
 }
 
-const { ejemplar } = Astro.props;
+// De una a tres fotografías. Sin ninguna, la imagen genérica institucional.
+const guardadas = await fotosDe(ejemplar.id);
+const fotos = guardadas.length
+  ? guardadas.map((f) => ({
+      archivo: urlFoto(f.clave_ficha),
+      texto_alternativo: f.texto_alternativo ?? `Fotografía de ${ejemplar.nombre}`,
+    }))
+  : [{
+      archivo: '/imagenes/sin-foto.svg',
+      texto_alternativo: `${ejemplar.nombre} todavía no tiene fotografía`,
+    }];
 
-// De una a tres fotografías. Si no tiene ninguna, portada() devuelve la
-// imagen genérica institucional.
-const fotos = ejemplar.fotografias?.length
-  ? [...ejemplar.fotografias].sort((a, b) => a.orden - b.orden)
-  : [portada(ejemplar)];
+const espera = esperaDe(ejemplar);
+
+/* Tres que llevan más tiempo esperando, para ofrecer al final. Reparte la
+   demanda sin señalar a nadie: en vez de decirle a la persona que el que
+   eligió ya tiene muchas solicitudes, le enseña a otros que no tienen
+   ninguna. Ver `esperaDe()` para el razonamiento completo. */
+const otros = await otrosEsperando(ejemplar.slug, 3);
 
 const disponible = ejemplar.condicion === 'DISPONIBLE';
 const enProceso = ejemplar.condicion === 'EN_PROCESO';
@@ -32,7 +55,7 @@ const enProceso = ejemplar.condicion === 'EN_PROCESO';
   descripcion={`${ejemplar.nombre} busca hogar. Conoce su ficha y solicita su adopción.`}
 >
   <div class="contenedor">
-    <p class="regresar"><a href="/seres-sintientes">‹ Regresar al catálogo</a></p>
+    <p class="migaja"><a href="/seres-sintientes">‹ Regresar al catálogo</a></p>
   </div>
 
   <article class="ficha contenedor">
@@ -63,66 +86,148 @@ const enProceso = ejemplar.condicion === 'EN_PROCESO';
     </div>
 
     <div class="datos-ficha">
+      {/* Sello del programa. Decorativo: el nombre del programa ya está en el
+          encabezado de la página, así que aquí no se repite para un lector de
+          pantalla. */}
+      <img class="sello" src="/imagenes/marca/isotipo.svg" alt="" aria-hidden="true"
+           width="40" height="58" />
+      {espera && <p class="espera">{espera}</p>}
+
       <p class="rotulo">Me llamo</p>
-      <h1>{ejemplar.nombre}</h1>
+      <h1>
+        {ejemplar.nombre}<a class="llamada" href="#nota-1" id="ref-1"
+           aria-label="Ver la nota 1 sobre el nombre">1</a>
+      </h1>
 
       <dl class="datos">
         <div>
           <dt>Edad</dt>
-          <dd>{etiqueta('edad', ejemplar.edad_clave)}</dd>
+          <dd>{ejemplar.edad_etiqueta}</dd>
         </div>
         <div>
           <dt>Soy</dt>
-          <dd>{etiqueta('sexo', ejemplar.sexo_clave)}</dd>
+          <dd>{ejemplar.sexo_etiqueta}</dd>
         </div>
         <div>
           <dt>Talla actual</dt>
-          <dd>{etiqueta('talla', ejemplar.talla_clave)}</dd>
+          <dd>{ejemplar.talla_etiqueta}</dd>
         </div>
       </dl>
 
       {disponible && (
-        <a class="boton boton-solido principal-accion" href={`/adoptar/${ejemplar.slug}`}>
-          Adóptame
-        </a>
-      )}
-
-      {enProceso && (
         <>
-          <p class="leyenda-proceso">
-            Este ejemplar se encuentra en proceso de adopción; puedes registrar tu interés.
-          </p>
-          <span class="boton principal-accion" aria-disabled="true">Adóptame</span>
-          <a class="boton boton-linea principal-accion" href={`/adoptar/${ejemplar.slug}`}>
-            Registrar mi interés
+          {/* El asterisco es decorativo: se oculta al lector de pantalla y en su
+              lugar `aria-describedby` ata el botón con el aviso, que es la forma
+              correcta de decir «esto tiene una advertencia». Un asterisco leído
+              en voz alta no explica nada. */}
+          <a class="boton boton-solido principal-accion" href={`/adoptar/${ejemplar.slug}`}
+             aria-describedby="aviso-solicitud">
+            Adóptame<sup class="asterisco" aria-hidden="true">*</sup>
           </a>
+          <p class="ayuda-boton" id="aviso-solicitud">
+            <span class="asterisco-nota" aria-hidden="true">*</span>
+            Enviar una solicitud no garantiza la adopción, pero nos permite acompañarte
+            durante el proceso.
+          </p>
         </>
       )}
 
-      <p class="pie-ficha">
-        Al continuar llenarás una solicitud de adopción. Completar este formulario no
-        garantiza la adopción, pero nos permite acompañarte de forma cercana y responsable
-        durante el proceso.
-      </p>
-      <p class="pie-ficha">
-        Todos los seres sintientes de este catálogo ingresan esterilizados, vacunados y desparasitados.
-      </p>
+      {/* En proceso: la leyenda explica y el botón actúa.
+          Antes había además un «Adóptame» apagado, que venía del mockup del
+          documento de requerimientos. Se retiró porque no hacía nada: llevaba
+          a la misma dirección que el botón de abajo, y no decía nada que la
+          leyenda no dijera ya. Un botón muerto junto a uno vivo que hace lo
+          mismo obliga a descifrar por qué están los dos. */}
+      {enProceso && (
+        <>
+          <p class="leyenda-proceso">
+            Este ser sintiente está en proceso de adopción. Puedes registrar tu interés y
+            el centro te contactará por orden de llegada.
+          </p>
+          {/* El asterisco es decorativo: se oculta al lector de pantalla y en su
+              lugar `aria-describedby` ata el botón con el aviso, que es la forma
+              correcta de decir «esto tiene una advertencia». Un asterisco leído
+              en voz alta no explica nada. */}
+          <a class="boton boton-solido principal-accion" href={`/adoptar/${ejemplar.slug}`}
+             aria-describedby="aviso-solicitud">
+            Registrar mi interés<sup class="asterisco" aria-hidden="true">*</sup>
+          </a>
+          <p class="ayuda-boton" id="aviso-solicitud">
+            <span class="asterisco-nota" aria-hidden="true">*</span>
+            Enviar una solicitud no garantiza la adopción, pero nos permite acompañarte
+            durante el proceso.
+          </p>
+        </>
+      )}
 
-      <p class="nota-nombre nota-izquierda">
-        El nombre que aparece en esta ficha fue asignado para fines de identificación.
-        La persona adoptante podrá elegir el nombre definitivo de su nuevo compañero.
-      </p>
+      {/* La insignia cierra el bloque de la acción: primero quién es, luego la
+          acción, luego lo que hay que saber antes de pulsarla, y al final la
+          garantía como respaldo de todo lo anterior. Centrada, porque ya no
+          acompaña a una columna de datos alineada a la izquierda. */}
+      <div class="centrado-garantia">
+        <p class="garantia">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3l7 3v5c0 4.4-2.9 8.3-7 9.5C7.9 19.3 5 15.4 5 11V6l7-3z" />
+            <path d="M9 12l2 2 4-4" />
+          </svg>
+          <span>Todos están <strong>esterilizados, vacunados y desparasitados</strong></span>
+        </p>
+      </div>
+
+      {/* Sólo queda como nota lo que de verdad lo es: una aclaración sobre
+          algo concreto de la ficha —el nombre—, con su número junto a él.
+
+          El aviso de la solicitud volvió a ser línea de ayuda bajo el botón,
+          que es donde sirve: se lee ANTES de pulsar, no después de bajar. Y la
+          garantía sanitaria subió a una insignia junto a los datos, que es
+          donde pesa en la decisión.
+
+          El intento anterior los trató a los tres igual, con lista numerada y
+          enlaces de regreso, y acabó ocupando más espacio que los párrafos que
+          venía a sustituir. */}
+      <footer class="notas-ficha">
+        <p class="nota" id="nota-1">
+          <span class="numero">1</span>
+          El nombre que aparece en esta ficha fue asignado para fines de identificación.
+          La persona adoptante podrá elegir el nombre definitivo de su nuevo compañero.
+        </p>
+      </footer>
     </div>
   </article>
+
+  {otros.length > 0 && (
+    <section class="otros" aria-labelledby="titulo-otros">
+      <div class="contenedor">
+        {/* Las huellas abren la sección: es la única del portal que no habla
+            del ejemplar que se está viendo, y el icono marca ese corte mejor
+            que un filete. Decorativo, con `alt` vacío. */}
+        <img class="marca-seccion" src="/imagenes/iconos/21-huellas.svg"
+             alt="" width="44" height="44" loading="lazy" />
+        <p class="antetitulo">También están esperando</p>
+        <h2 id="titulo-otros">Otros que llevan más tiempo</h2>
+        <p class="entrada">
+          Cada solicitud tarda en resolverse. Si alguno de ellos encaja contigo,
+          es probable que el encuentro llegue antes.
+        </p>
+
+        <div class="rejilla-otros">
+          {otros.map((o) => <TarjetaEjemplar ejemplar={o} />)}
+        </div>
+      </div>
+    </section>
+  )}
 </Base>
 
 <style>
-  .regresar { padding-top: 22px; margin: 0; }
-  .regresar a {
-    font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--gris-claro); text-decoration: none;
-  }
-  .regresar a:hover { color: var(--guinda); }
+  .sello { height: 44px; width: auto; display: block; margin-bottom: 10px; opacity: .9; }
+
+  /* La migaja de esta página necesita aire arriba, porque es la única que
+     va directamente debajo de la banda de navegación guinda: sin él, el
+     contenido arranca pegado al borde de color. Lo demás lo pone `.migaja`
+     de global.css. */
+  .migaja { padding-top: 20px; }
+
 
   .ficha {
     display: grid; gap: 34px; align-items: start;
@@ -152,7 +257,7 @@ const enProceso = ejemplar.condicion === 'EN_PROCESO';
     width: 100%; height: auto;
     aspect-ratio: 4 / 3; object-fit: cover; object-position: top center;
   }
-  .miniatura[aria-pressed="true"] { border-color: var(--guinda); }
+  .miniatura[aria-pressed="true"] { border-color: var(--principal); }
 
   .datos-ficha .rotulo {
     font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase;
@@ -169,10 +274,10 @@ const enProceso = ejemplar.condicion === 'EN_PROCESO';
     border-top: 1px solid var(--linea); border-bottom: 1px solid var(--linea);
   }
   .datos dt {
-    font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase;
+    font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase;
     color: var(--gris-claro); margin: 0;
   }
-  .datos dd { margin: 4px 0 0; font-size: 1rem; color: var(--texto); }
+  .datos dd { margin: 4px 0 0; font-size: 1.0625rem; color: var(--texto); }
 
   .principal-accion { width: 100%; margin-bottom: 12px; }
 
@@ -181,8 +286,68 @@ const enProceso = ejemplar.condicion === 'EN_PROCESO';
     padding: 12px 14px; margin: 0 0 14px; color: var(--gris); font-size: 0.9375rem;
   }
 
-  .pie-ficha { color: var(--gris-claro); font-size: 0.8125rem; margin: 10px 0 0; }
-  .nota-izquierda { text-align: left; margin-left: 0; margin-top: 22px; }
+  /* Aire arriba para despegarla de la línea de ayuda. El de abajo lo pone el
+     filete de las notas. */
+  .garantia { margin: 18px 0 0; }
+
+  /* Otros que llevan más tiempo esperando. Va en franja crema para que se lea
+     como una sección aparte y no como más contenido de la ficha. */
+  .otros { background: var(--crema); padding-block: 40px 48px; margin-top: 48px; }
+  .marca-seccion { display: block; width: 44px; height: auto; margin: 0 auto 10px; }
+  .otros h2 {
+    color: var(--principal); font-size: 1.5rem; margin: 0 0 10px; text-align: center;
+  }
+  .rejilla-otros {
+    display: grid; gap: 18px; margin-top: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+
+  /* --- Notas al pie -------------------------------------------------------
+     El número volado junto al nombre. Sin relleno para alcanzar 24 px: la
+     norma exime a los enlaces dentro de una línea de texto, y agrandarlo
+     separaría el número de la palabra, que es justo lo que no debe pasar. */
+  .llamada {
+    font-size: 0.6875rem; font-weight: 700; color: var(--principal);
+    text-decoration: none; vertical-align: super; margin-left: 2px;
+    line-height: 0;
+  }
+  .llamada:hover { text-decoration: underline; }
+
+  /* El asterisco dentro del botón, volado y algo transparente: señala que hay
+     una nota sin competir con la palabra. */
+  .asterisco {
+    font-size: 0.75em; vertical-align: super; line-height: 0;
+    margin-left: 1px; opacity: 0.85;
+  }
+  /* El asterisco de la nota lleva su propio espacio: el salto de línea del
+     marcado no cuenta como uno, así que sin esto queda pegado a la primera
+     palabra. */
+  .asterisco-nota { color: var(--principal); font-weight: 700; margin-right: 4px; }
+
+  /* Aviso previo a la acción. Va pegado al botón y en pequeño: se lee antes
+     de pulsar, que es cuando sirve. */
+  .ayuda-boton {
+    margin: -2px 0 0; font-size: 0.8125rem; line-height: 1.5;
+    color: var(--gris-claro); font-style: italic;
+  }
+  /* El asterisco no se inclina: es un signo, no texto. */
+  .ayuda-boton .asterisco-nota { font-style: normal; }
+
+  .notas-ficha { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--linea); }
+  /* Cursiva, igual que el aviso del botón: las dos son letra chica que aclara,
+     y compartir el tratamiento las hace reconocibles como tales de un vistazo. */
+  .nota {
+    margin: 0 0 8px; color: var(--gris-claro);
+    font-size: 0.8125rem; line-height: 1.55; font-style: italic;
+  }
+  .nota:last-child { margin-bottom: 0; }
+  /* El número no se inclina —es una llamada, no texto— y lleva su propio
+     espacio, porque el salto de línea del marcado no cuenta como uno. */
+  .nota .numero {
+    color: var(--principal); font-weight: 700; margin-right: 4px; font-style: normal;
+  }
+  .nota:target { scroll-margin-top: 20px; }
+
 </style>
 
 <script>

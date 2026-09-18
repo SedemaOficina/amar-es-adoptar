@@ -1,184 +1,319 @@
 ---
-/* Catálogo público.
-   Las tarjetas se generan al construir el sitio y el filtrado y la
-   paginación ocurren en el navegador: son treinta registros y no vale la
-   pena un servidor para eso. En la etapa 3, cuando sean cientos, el
-   filtrado se mueve a la API y esta página sólo cambia de origen. */
+/* Catálogo público — etapa 3.
+ *
+ * Se sirve desde el servidor y lee de la base de datos, la misma que usa la
+ * administración. Ésa es la corrección de fondo del proyecto: una sola fuente
+ * de datos. Lo que se da de alta aparece aquí; lo que se marca como adoptado
+ * desaparece de aquí. Sin sincronizaciones, sin dos sistemas que se
+ * contradicen.
+ *
+ * El filtrado también se movió al servidor. Antes el navegador recibía las
+ * treinta tarjetas y escondía las que no coincidían; con cientos eso deja de
+ * ser viable. A cambio, las direcciones se volvieron compartibles.
+ *
+ * El panel de filtros es un <details> de HTML: se abre y se cierra sin una
+ * línea de JavaScript. Arranca SIEMPRE abierto: un filtro que hay que
+ * descubrir es un filtro que no se usa, y en la auditoría ya se vio que la
+ * gente leía el panel cerrado como que los filtros no servían. Quien no los
+ * quiera ver puede cerrarlo; el navegador conserva ese gesto mientras dure
+ * la visita.
+ */
+export const prerender = false;
+
 import Base from '../../layouts/Base.astro';
 import TarjetaEjemplar from '../../components/TarjetaEjemplar.astro';
-import { obtenerEjemplares, catalogos } from '../../datos/ejemplares.js';
+import {
+  buscarPublico, catalogosPublicos, POR_PAGINA,
+} from '../../servidor/ejemplares-publico.js';
 
-const ejemplares = obtenerEjemplares();
-const POR_PAGINA = 16;
+const p = Astro.url.searchParams;
+const catalogos = await catalogosPublicos();
+
+const resultado = await buscarPublico({
+  edad: p.get('edad') ?? '',
+  sexo: p.get('sexo') ?? '',
+  talla: p.get('talla') ?? '',
+  texto: p.get('texto') ?? '',
+  pagina: p.get('pagina'),
+}, catalogos);
+
+const { ejemplares, total, pagina, paginas, filtros } = resultado;
+
+const puestos = [filtros.edad, filtros.sexo, filtros.talla, filtros.texto].filter(Boolean).length;
+
+/* Qué números de página se pintan.
+ *
+ * Con dieciocho páginas no caben todas, y tampoco hacen falta: se muestran la
+ * primera, la última, la actual y sus vecinas, con puntos suspensivos donde se
+ * salta. Sin esto, llegar a la última página son diecisiete clics.
+ */
+function ventanaDePaginas(actual, total) {
+  const cerca = new Set([1, total, actual, actual - 1, actual + 1]);
+
+  // En los extremos se abre un poco más, para que no quede un solo número
+  // suelto al lado de los puntos suspensivos.
+  if (actual <= 3) [2, 3, 4].forEach((n) => cerca.add(n));
+  if (actual >= total - 2) [total - 1, total - 2, total - 3].forEach((n) => cerca.add(n));
+
+  const numeros = [...cerca].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
+
+  const salida = [];
+  let anterior = 0;
+  for (const n of numeros) {
+    if (anterior && n - anterior > 1) salida.push('…');
+    salida.push(n);
+    anterior = n;
+  }
+  return salida;
+}
+
+/** Dirección conservando los filtros, cambiando sólo lo que se indique. */
+function direccion(cambios = {}) {
+  const q = new URLSearchParams();
+  const base = { ...filtros, pagina };
+  for (const [k, v] of Object.entries({ ...base, ...cambios })) {
+    if (v && !(k === 'pagina' && v === 1)) q.set(k, String(v));
+  }
+  const cadena = q.toString();
+  return cadena ? `/seres-sintientes?${cadena}` : '/seres-sintientes';
+}
 ---
 <Base titulo="Conoce a los seres sintientes en adopción">
   <section class="franja-crema">
     <div class="contenedor">
       <p class="antetitulo">Seres sintientes rescatados en la Ciudad de México</p>
 
+      {/* La página no tenía encabezado: abría con un antetítulo y un párrafo, y
+          las 16 tarjetas eran <h2> colgando de nada. Quien usa lector de
+          pantalla y salta por encabezados no encontraba de qué trataba la
+          página, y el buscador tampoco: ésta es la que la Secretaría querrá
+          posicionar. */}
+      <h1 class="titulo-catalogo">Conoce a los seres sintientes en adopción</h1>
+
       <p class="entrada">
         Cada uno tiene una historia distinta, pero todos necesitan lo mismo:
         un hogar seguro y mucho amor.
       </p>
 
+      {/* Esto no es letra chica, es una garantía: responde la pregunta que se
+          hace cualquiera antes de mirar una sola ficha. Como párrafo gris se
+          perdía entre los otros tres; como distintivo se lee de un vistazo y
+          además mete el único color que no es guinda ni dorado en toda la
+          cabecera. */}
+      <div class="centrado-garantia">
+        <p class="garantia">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3l7 3v5c0 4.4-2.9 8.3-7 9.5C7.9 19.3 5 15.4 5 11V6l7-3z" />
+            <path d="M9 12l2 2 4-4" />
+          </svg>
+          <span>Todos están <strong>esterilizados, vacunados y desparasitados</strong></span>
+        </p>
+      </div>
+
       <p class="nota-nombre">
-        El nombre que aparece en esta ficha fue asignado para fines de identificación.
+        El nombre que aparece en cada ficha fue asignado para fines de identificación.
         La persona adoptante podrá elegir el nombre definitivo de su nuevo compañero.
       </p>
 
-      <div class="zona-filtros">
-        <button
-          type="button"
-          class="boton boton-linea"
-          id="abrir-filtros"
-          aria-expanded="false"
-          aria-controls="panel-filtros"
-        >Filtrar por</button>
-      </div>
+      <details class="panel-filtros" open>
+        <summary>
+          Filtrar por
+          {puestos > 0 && <span class="cuantos">{puestos}</span>}
+        </summary>
 
-      <form class="panel-filtros" id="panel-filtros" hidden>
-        <div class="campos">
-          <div>
-            <label for="f-edad">Edad</label>
-            <select id="f-edad" name="edad">
-              <option value="">Todas</option>
-              {catalogos.edad.map((v) => <option value={v.clave}>{v.etiqueta}</option>)}
-            </select>
+        <form method="GET" action="/seres-sintientes">
+          <div class="campos">
+            <div>
+              <label for="f-edad">Edad</label>
+              <select id="f-edad" name="edad" data-envia-al-cambiar>
+                <option value="">Todas</option>
+                {catalogos.edad.map((v) => (
+                  <option value={v.clave} selected={filtros.edad === v.clave}>{v.etiqueta}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label for="f-sexo">Soy</label>
+              <select id="f-sexo" name="sexo" data-envia-al-cambiar>
+                <option value="">Todos</option>
+                {catalogos.sexo.map((v) => (
+                  <option value={v.clave} selected={filtros.sexo === v.clave}>{v.etiqueta}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label for="f-talla">Talla actual</label>
+              <select id="f-talla" name="talla" data-envia-al-cambiar>
+                <option value="">Todas</option>
+                {catalogos.talla.map((v) => (
+                  <option value={v.clave} selected={filtros.talla === v.clave}>{v.etiqueta}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label for="f-nombre">Nombre</label>
+              <input id="f-nombre" name="texto" type="search" value={filtros.texto}
+                     placeholder="Buscar por nombre" autocomplete="off" />
+            </div>
           </div>
-          <div>
-            <label for="f-sexo">Soy</label>
-            <select id="f-sexo" name="sexo">
-              <option value="">Todos</option>
-              {catalogos.sexo.map((v) => <option value={v.clave}>{v.etiqueta}</option>)}
-            </select>
-          </div>
-          <div>
-            <label for="f-talla">Talla actual</label>
-            <select id="f-talla" name="talla">
-              <option value="">Todas</option>
-              {catalogos.talla.map((v) => <option value={v.clave}>{v.etiqueta}</option>)}
-            </select>
-          </div>
-          <div>
-            <label for="f-nombre">Nombre</label>
-            <input id="f-nombre" name="nombre" type="search" placeholder="Buscar por nombre" autocomplete="off" />
-          </div>
-        </div>
 
-        <div class="acciones-filtros">
-          <button type="reset" class="boton boton-linea">Limpiar filtros</button>
-        </div>
-      </form>
+          <div class="acciones-filtros">
+            {puestos > 0 && <a class="boton boton-linea" href="/seres-sintientes">Limpiar filtros</a>}
+            <button type="submit" class="boton boton-solido">Buscar</button>
+          </div>
+        </form>
+      </details>
 
-      <p class="conteo" id="conteo" role="status" aria-live="polite"></p>
+      <p class="conteo" role="status">
+        {total === 0
+          ? 'Ningún ser sintiente coincide con lo que buscas.'
+          : total === 1
+            ? '1 ser sintiente en adopción.'
+            : `${total} seres sintientes en adopción.`}
+        {paginas > 1 && ` Página ${pagina} de ${paginas}.`}
+      </p>
     </div>
   </section>
 
   <div class="contenedor">
-    <div class="rejilla" id="rejilla">
-      {ejemplares.map((e) => <TarjetaEjemplar ejemplar={e} />)}
-    </div>
+    {total === 0 ? (
+      /* Un estado vacío es un callejón sin salida, y es donde una ilustración
+         hace más falta: suaviza el tropiezo y da algo que mirar mientras se
+         lee la salida. La lupa con huella lo dice literalmente, y va con `alt`
+         vacío porque es decoración: lo que hay que saber ya está escrito.
 
-    <p class="sin-resultados" id="sin-resultados" hidden>
-      No hay seres sintientes que coincidan con lo que buscas. Prueba con otros filtros.
-    </p>
+         NO REPITE QUE NO HAY RESULTADOS. Eso ya lo dice el conteo de arriba,
+         que además es `role="status"` y por tanto lo que un lector de pantalla
+         anuncia al terminar la búsqueda. Aquí va lo siguiente: qué hacer. Dos
+         mensajes seguidos diciendo lo mismo hacen que se lean los dos y no se
+         atienda ninguno. */
+      <div class="sin-resultados">
+        <img src="/imagenes/iconos/18-lupa-huella.svg" alt="" width="64" height="64" />
+        <p>
+          Prueba con menos filtros, o{' '}
+          <a href="/seres-sintientes">mira el catálogo completo</a>.
+        </p>
+      </div>
+    ) : (
+      <div class="rejilla">
+        {ejemplares.map((e) => <TarjetaEjemplar ejemplar={e} />)}
+      </div>
+    )}
 
-    <nav class="paginacion" id="paginacion" aria-label="Paginación del catálogo"></nav>
+    {paginas > 1 && (
+      <nav class="paginacion" aria-label="Paginación del catálogo">
+        {pagina > 1 && (
+          <a class="paso" rel="prev" href={direccion({ pagina: pagina - 1 })}>‹ Anterior</a>
+        )}
+
+        <ul class="numeros">
+          {ventanaDePaginas(pagina, paginas).map((n) => (
+            <li>
+              {n === '…' ? (
+                <span class="hueco" aria-hidden="true">…</span>
+              ) : n === pagina ? (
+                <span class="numero actual" aria-current="page">
+                  <span class="solo-lectores">Página </span>{n}
+                </span>
+              ) : (
+                <a class="numero" href={direccion({ pagina: n })}>
+                  <span class="solo-lectores">Página </span>{n}
+                </a>
+              )}
+            </li>
+          ))}
+        </ul>
+
+        {pagina < paginas && (
+          <a class="paso" rel="next" href={direccion({ pagina: pagina + 1 })}>Siguiente ›</a>
+        )}
+      </nav>
+    )}
   </div>
 </Base>
 
-<script define:vars={{ POR_PAGINA }}>
-  // Elementos de la página
-  const rejilla = document.getElementById('rejilla');
-  const tarjetas = Array.from(rejilla.querySelectorAll('[data-ejemplar]'));
-  const panel = document.getElementById('panel-filtros');
-  const abrir = document.getElementById('abrir-filtros');
-  const conteo = document.getElementById('conteo');
-  const vacio = document.getElementById('sin-resultados');
-  const paginacion = document.getElementById('paginacion');
+<script>
+  /* Cada lista se aplica al soltar la opción, igual que en la administración.
+     Elegir un valor y tener además que apretar un botón es un paso que nadie
+     espera dar.
 
-  let pagina = 1;
-
-  // Quita acentos y mayúsculas, para que "Guero" encuentre a "Güero".
-  const normalizar = (t) =>
-    t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-
-  // Mostrar u ocultar el panel de filtros
-  abrir.addEventListener('click', () => {
-    const visible = !panel.hidden;
-    panel.hidden = visible;
-    abrir.setAttribute('aria-expanded', String(!visible));
-  });
-
-  function filtradas() {
-    const edad = panel.elements.edad.value;
-    const sexo = panel.elements.sexo.value;
-    const talla = panel.elements.talla.value;
-    const texto = normalizar(panel.elements.nombre.value);
-
-    return tarjetas.filter((t) => {
-      if (edad && t.dataset.edad !== edad) return false;
-      if (sexo && t.dataset.sexo !== sexo) return false;
-      if (talla && t.dataset.talla !== talla) return false;
-      if (texto && !normalizar(t.dataset.nombre).includes(texto)) return false;
-      return true;
-    });
+     El botón se queda por dos razones: la búsqueda por nombre no puede
+     enviarse en cada tecla, y sin JavaScript es lo único que haría funcionar
+     el catálogo. El panel es un <details> y la página vuelve con los filtros
+     puestos, así que queda abierto donde se dejó. */
+  for (const lista of document.querySelectorAll('[data-envia-al-cambiar]')) {
+    lista.addEventListener('change', () => lista.form.submit());
   }
-
-  function pintar() {
-    const visibles = filtradas();
-    const paginas = Math.max(1, Math.ceil(visibles.length / POR_PAGINA));
-    if (pagina > paginas) pagina = paginas;
-
-    const desde = (pagina - 1) * POR_PAGINA;
-    const enPagina = visibles.slice(desde, desde + POR_PAGINA);
-
-    tarjetas.forEach((t) => { t.hidden = true; });
-    enPagina.forEach((t) => { t.hidden = false; });
-
-    vacio.hidden = visibles.length !== 0;
-
-    conteo.textContent = visibles.length === 0
-      ? 'Ningún resultado'
-      : `${visibles.length} ${visibles.length === 1 ? 'ser sintiente' : 'seres sintientes'} en adopción` +
-        (paginas > 1 ? ` · página ${pagina} de ${paginas}` : '');
-
-    pintarPaginacion(paginas);
-  }
-
-  function pintarPaginacion(paginas) {
-    paginacion.innerHTML = '';
-    if (paginas <= 1) return;
-
-    const boton = (texto, destino, opciones = {}) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = texto;
-      if (opciones.actual) b.setAttribute('aria-current', 'page');
-      if (opciones.desactivado) b.disabled = true;
-      if (opciones.etiqueta) b.setAttribute('aria-label', opciones.etiqueta);
-      b.addEventListener('click', () => {
-        pagina = destino;
-        pintar();
-        rejilla.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-      paginacion.appendChild(b);
-    };
-
-    boton('‹', pagina - 1, { desactivado: pagina === 1, etiqueta: 'Página anterior' });
-    for (let p = 1; p <= paginas; p++) {
-      boton(String(p), p, { actual: p === pagina, etiqueta: `Página ${p}` });
-    }
-    boton('›', pagina + 1, { desactivado: pagina === paginas, etiqueta: 'Página siguiente' });
-  }
-
-  // Cualquier cambio en los filtros regresa a la primera página
-  panel.addEventListener('input', () => { pagina = 1; pintar(); });
-  panel.addEventListener('reset', () => {
-    pagina = 1;
-    // El reset se aplica después de este evento; esperamos un tic.
-    setTimeout(pintar, 0);
-  });
-
-  pintar();
 </script>
+
+<style>
+  /* Encabezado de la página. Medido para que no compita con el nombre de cada
+     ejemplar en las tarjetas: la jerarquía es página → ejemplar, y la vista
+     tiene que seguir cayendo en las fotografías. */
+  .titulo-catalogo {
+    text-align: center; color: var(--principal);
+    font-size: clamp(1.375rem, 3.4vw, 1.75rem);
+    margin: 0 0 16px; text-wrap: balance;
+  }
+
+  /* El panel de filtros es un <details>: abre y cierra por sí solo. */
+  /* 12 px de relleno lo dejan en 44 de alto: es el control que abre los
+     filtros y ocupa todo el ancho, así que conviene que se toque fácil. */
+  .panel-filtros summary {
+    cursor: pointer; font-weight: 500; color: var(--principal);
+    display: flex; align-items: center; gap: 8px; justify-content: center;
+    padding: 12px 6px; min-height: 44px;
+  }
+  .panel-filtros summary::marker { color: var(--dorado); }
+  .cuantos {
+    background: var(--principal); color: var(--blanco); border-radius: 999px;
+    font-size: 0.75rem; min-width: 20px; height: 20px; display: inline-grid;
+    place-items: center; padding: 0 6px;
+  }
+  .panel-filtros form { margin-top: 16px; }
+  .acciones-filtros { gap: 10px; }
+
+  .sin-resultados {
+    text-align: center; padding-block: 36px 40px;
+  }
+  /* `display: block` con márgenes automáticos y no `text-align: center`: una
+     imagen en línea depende de que el centrado del contenedor le llegue, y en
+     la primera versión no le llegó —el texto salió centrado y la lupa no—.
+     Centrar el bloque por sus propios márgenes no depende de nadie. */
+  .sin-resultados img {
+    display: block; width: 64px; height: auto; margin: 0 auto 14px;
+  }
+  .sin-resultados p { color: var(--gris); margin: 0; }
+  .sin-resultados a { color: var(--principal); }
+  /* Paginación. Todo lo tocable mide al menos 44 px: la mayoría de las
+     visitas serán desde teléfono y estos son los blancos más pequeños de la
+     pantalla. */
+  .paginacion { gap: 6px; }
+
+  .paso, .numero {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 44px; min-height: 44px; padding: 0 12px;
+    border: 1px solid var(--linea-campo); border-radius: 8px;
+    font-size: 0.9375rem; text-decoration: none; color: var(--principal);
+    background: var(--blanco);
+  }
+  .paso { padding: 0 16px; }
+  .paso:hover, .numero:hover { background: var(--crema); border-color: var(--principal); }
+
+  .numero.actual {
+    background: var(--principal); color: var(--blanco);
+    border-color: var(--principal); font-weight: 600; cursor: default;
+  }
+
+  .numeros {
+    display: flex; align-items: center; gap: 6px;
+    list-style: none; margin: 0; padding: 0; flex-wrap: wrap;
+    justify-content: center;
+  }
+  .hueco {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 24px; min-height: 44px; color: var(--gris-claro);
+  }
+
+</style>

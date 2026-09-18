@@ -1,0 +1,632 @@
+---
+/* Formulario de ejemplar, compartido por el alta y la edición.
+   Compartirlo evita que las dos pantallas se desincronicen con el tiempo. */
+import { TAMANOS, MAXIMO_POR_EJEMPLAR } from '../compartido/fotografias-medidas.js';
+
+const { modo, valores, errores = {}, catalogos, persona, ejemplar = null } = Astro.props;
+
+/* Los números de fotografía, para pintar los campos ocultos. Salen del módulo
+   compartido y no de un 3 escrito aquí: si mañana el máximo cambia, cambia en
+   un solo lugar y el servidor y el navegador siguen de acuerdo. */
+const LUGARES = Array.from({ length: MAXIMO_POR_EJEMPLAR }, (_, i) => i + 1);
+
+const esAlta = modo === 'alta';
+const esCapturista = persona.rol === 'CAPTURISTA';
+
+/* El tono no es adorno: dice de un vistazo si el valor elegido abre o cierra
+   el paso. Siempre acompaña a la palabra, nunca la sustituye. */
+const SEMAFOROS = [
+  { clave: 'VERDE',    etiqueta: 'Verde',    tono: 'exito',    nota: 'Sociable. Sin restricciones de manejo.' },
+  { clave: 'AMARILLO', etiqueta: 'Amarillo', tono: 'atencion', nota: 'Requiere manejo con precaución. Se retira del catálogo público al guardar.' },
+];
+const CONDICIONES = [
+  { clave: 'DISPONIBLE', etiqueta: 'Disponible', tono: 'exito',    nota: 'Se muestra en el catálogo público y admite solicitudes.' },
+  { clave: 'EN_PROCESO', etiqueta: 'En proceso', tono: 'atencion', nota: 'Se muestra, con el botón apagado y registro de interés.' },
+  { clave: 'ADOPTADO',   etiqueta: 'Adoptado',   tono: 'inactivo', nota: 'Se retira del catálogo público. El registro se conserva.' },
+];
+
+const tonoDe = (lista, clave) => lista.find((x) => x.clave === clave)?.tono ?? 'neutro';
+const notaDe = (lista, clave, porOmision) => lista.find((x) => x.clave === clave)?.nota ?? porOmision;
+
+const v = (campo) => valores?.[campo] ?? '';
+---
+<!-- Sin `novalidate`: el navegador impide enviar campos vacíos y avisa al
+     instante. El servidor vuelve a comprobarlo todo de cualquier modo, porque
+     una validación del navegador se puede saltar. -->
+<div class="formulario">
+<!-- El <form> se cierra ANTES del hueco de contenido y de los botones.
+     Motivo: lo que se inserta ahí —la tira de fotografías— trae sus propios
+     <form>, y un formulario dentro de otro es HTML inválido: el navegador lo
+     repara por su cuenta y el resultado es impredecible.
+     Los botones quedan fuera y se amarran al formulario con el atributo
+     `form="datos-ejemplar"`, que es justo para lo que existe. -->
+<form method="POST" id="datos-ejemplar" enctype="multipart/form-data">
+  {errores.general && <p class="error-general">{errores.general}</p>}
+
+  <fieldset>
+    <legend>Identificación</legend>
+    <p class="nota-bloque">
+      El centro de origen y el folio forman juntos la clave del registro. Dos centros
+      pueden tener cada uno su ejemplar 00147; lo que no puede repetirse es el folio
+      dentro del mismo centro.
+    </p>
+
+    <div class="filas">
+      <div class="campo">
+        <label for="centro">Centro {esAlta ? 'de origen' : 'actual'} <span class="req" aria-hidden="true">*</span></label>
+        {esCapturista ? (
+          <>
+            <p class="fijo">{persona.centro_etiqueta}</p>
+            {/* Aunque el centro lo imponga el servidor, su error necesita dónde
+                verse: un mensaje sin lugar donde pintarse es un fallo mudo. */}
+            {(errores.centro_origen_clave || errores.centro_actual_clave) && (
+              <p class="error">{errores.centro_origen_clave ?? errores.centro_actual_clave}</p>
+            )}
+            <p class="ayuda">Tu perfil sólo registra en este centro.</p>
+          </>
+        ) : (
+          <>
+            <select id="centro" name={esAlta ? 'centro_origen_clave' : 'centro_actual_clave'}>
+              {catalogos.centro.map((c) => (
+                <option value={c.clave}
+                  selected={v(esAlta ? 'centro_origen_clave' : 'centro_actual_clave') === c.clave}>
+                  {c.etiqueta}
+                </option>
+              ))}
+            </select>
+            {!esAlta && (
+              <p class="ayuda">
+                Cambiarlo registra un traslado. El centro de origen
+                ({ejemplar?.centro_origen_clave}) no cambia nunca.
+              </p>
+            )}
+          </>
+        )}
+      </div>
+
+      <div class="campo">
+        <label for="folio">Folio interno <span class="req" aria-hidden="true">*</span></label>
+        <input id="folio" name="folio_interno" inputmode="numeric" maxlength="5"
+               value={v('folio_interno')} placeholder="00147" required
+               pattern="\d{1,5}" title="De uno a cinco dígitos."
+               aria-describedby="ayuda-folio"
+               aria-invalid={errores.folio_interno ? 'true' : undefined} />
+        {errores.folio_interno && <p class="error" id="error-folio">{errores.folio_interno}</p>}
+        {/* Aviso vivo: se llena solo, preguntándole al servidor si el folio ya
+            está ocupado en ese centro. Sólo en el alta; en la edición el folio
+            propio del ejemplar saldría siempre "ocupado" por sí mismo. */}
+        {esAlta && (
+          <p class="aviso-folio" id="aviso-folio" role="status"
+             data-consulta="/admin/ejemplar/folio-libre.json" hidden></p>
+        )}
+        <p class="ayuda" id="ayuda-folio">
+          De uno a cinco dígitos. Se completa con ceros a la izquierda.
+        </p>
+
+      </div>
+
+      {!esAlta && (
+        <p class="desbloqueo">
+          <label>
+            <input type="checkbox" name="folio_desbloqueado" value="1" id="desbloqueo" />
+            Permitir cambiar el folio
+          </label>
+          <span class="advertencia">
+            El folio identifica al ejemplar ante el centro. Cambiarlo rompe la
+            correspondencia con los registros en papel y queda asentado en la bitácora.
+            Sin esta casilla, lo que se escriba arriba se ignora.
+          </span>
+        </p>
+      )}
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Datos del ejemplar</legend>
+
+    <div class="campo">
+      <label for="nombre">Nombre asignado <span class="req" aria-hidden="true">*</span></label>
+      <input id="nombre" name="nombre" value={v('nombre')} maxlength="120" required
+             aria-invalid={errores.nombre ? 'true' : undefined} />
+      {errores.nombre && <p class="error">{errores.nombre}</p>}
+      <p class="ayuda">Se admiten nombres repetidos entre ejemplares distintos.</p>
+    </div>
+
+    <div class="filas tres">
+      {[
+        { id: 'edad', name: 'edad_clave', etiqueta: 'Edad', lista: catalogos.edad },
+        { id: 'sexo', name: 'sexo_clave', etiqueta: 'Sexo', lista: catalogos.sexo },
+        { id: 'talla', name: 'talla_clave', etiqueta: 'Talla', lista: catalogos.talla },
+      ].map((c) => (
+        <div class="campo">
+          <label for={c.id}>{c.etiqueta} <span class="req" aria-hidden="true">*</span></label>
+          <select id={c.id} name={c.name} required
+                  aria-invalid={errores[c.name] ? 'true' : undefined}>
+            <option value="">Elige…</option>
+            {c.lista.map((o) => (
+              <option value={o.clave} selected={v(c.name) === o.clave}>{o.etiqueta}</option>
+            ))}
+          </select>
+          {errores[c.name] && <p class="error">{errores[c.name]}</p>}
+        </div>
+      ))}
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Datos internos</legend>
+    <p class="nota-bloque">
+      Ni el semáforo ni el centro se muestran nunca al público, pero los dos deciden
+      qué ve la ciudadanía: sólo aparece en el portal lo que está en verde.
+    </p>
+
+    <div class="filas">
+      {/* El semáforo no se captura en ninguna de las dos pantallas.
+          · Al programa sólo entran ejemplares en verde, así que en el alta un
+            desplegable de una sola opción no sería una decisión, sería un
+            trámite.
+          · Y si la conducta cambia después, lo que corresponde es DAR DE BAJA
+            con su motivo y su nota, no cambiar un desplegable y que el
+            ejemplar desaparezca del portal sin razón escrita. Un registro que
+            se esfuma sin explicación es una pregunta sin respuesta dentro de
+            seis meses.
+          Se muestra el valor porque sirve para entender el registro; lo que
+          no se ofrece es cambiarlo desde aquí. */}
+      <div class="campo">
+        <label for="semaforo-fijo">Semáforo conductual</label>
+        <p class="fijo" id="semaforo-fijo">
+          {esAlta
+            ? 'Verde'
+            : (SEMAFOROS.find((x) => x.clave === valores?.semaforo)?.etiqueta ?? 'Verde')}
+        </p>
+        <p class="ayuda">
+          {esAlta
+            ? 'Al programa sólo ingresan ejemplares en verde.'
+            : 'Si su conducta cambió y ya no es apto para adopción, no se edita aquí: se da de baja, abajo, con el motivo y la nota correspondientes.'}
+        </p>
+      </div>
+
+      <div class="campo">
+        <label for="condicion">Condición <span class="req" aria-hidden="true">*</span></label>
+        <select id="condicion" name="condicion" required
+                data-actual={ejemplar?.condicion ?? 'DISPONIBLE'}
+                aria-invalid={errores.condicion ? 'true' : undefined}>
+          {CONDICIONES.map((c) => (
+            <option value={c.clave} selected={v('condicion') === c.clave}>{c.etiqueta}</option>
+          ))}
+        </select>
+        {errores.condicion && <p class="error">{errores.condicion}</p>}
+        <p class="pastilla" id="pastilla-condicion" aria-live="polite"
+           data-tono={tonoDe(CONDICIONES, v('condicion') || 'DISPONIBLE')}>
+          <span class="punto" aria-hidden="true"></span>
+          <span class="dicho">
+            {notaDe(CONDICIONES, v('condicion') || 'DISPONIBLE',
+                    'Gobierna si el ejemplar aparece en el catálogo público.')}
+          </span>
+        </p>
+      </div>
+    </div>
+
+    {!esAlta && (
+      <p class="confirmacion" id="confirmacion">
+        <label>
+          <input type="checkbox" name="confirma_condicion" value="1" />
+          Confirmo el cambio de condición
+        </label>
+        <span class="advertencia">
+          Marcar como adoptado retira al ejemplar del catálogo público; reincorporarlo lo
+          devuelve. Por eso se pide confirmar.
+        </span>
+      </p>
+    )}
+  </fieldset>
+
+  {esAlta && (
+    <fieldset>
+      <legend>Fotografías</legend>
+      <p class="nota-bloque">
+        Un animal no se da de alta sin fotografía: una ficha sin imagen no consigue
+        adopciones. Puedes elegir hasta {MAXIMO_POR_EJEMPLAR} de una vez —la primera queda
+        como portada— y agregar o cambiarlas después desde la ficha. Se recortan solas a
+        4:3 con encuadre superior.
+      </p>
+
+      <noscript>
+        <p class="error-general">
+          El alta necesita que el navegador ejecute JavaScript: el recorte y los cuatro
+          tamaños de cada fotografía se preparan aquí antes de enviarse.
+        </p>
+      </noscript>
+
+      <div class="campo">
+        <label for="foto-alta">Archivos <span class="req" aria-hidden="true">*</span></label>
+        <input type="file" id="foto-alta" accept="image/jpeg,image/png,image/webp"
+               multiple required
+               aria-invalid={errores.fotografia ? 'true' : undefined} />
+        <p class="ayuda">
+          JPEG, PNG o WEBP. Se convierten y se reducen automáticamente. Para elegir varias,
+          mantén presionada la tecla Ctrl al seleccionarlas.
+        </p>
+        {errores.fotografia && <p class="error">{errores.fotografia}</p>}
+        {/* El navegador vacía los campos de archivo al repintar la página: es
+            una regla de seguridad, ningún sitio puede dejar un archivo puesto
+            por su cuenta. Si el alta falló por otra cosa —un folio repetido,
+            por ejemplo— las fotografías se perdieron y hay que volver a
+            elegirlas. Decirlo evita que alguien dé de alta creyendo que
+            siguen cargadas. */}
+        {errores.general && !errores.fotografia && (
+          <p class="error">
+            Vuelve a elegir las fotografías: el navegador no las conserva cuando la
+            página se recarga con errores.
+          </p>
+        )}
+        {/* Los fallos que detecta el navegador —demasiados archivos, uno que no
+            es imagen— se pintan aquí, sin recargar nada. */}
+        <p class="error" id="error-fotos" role="alert" hidden></p>
+      </div>
+
+      {/* Un juego de cuatro campos ocultos por cada lugar. El navegador los
+          rellena con lo ya recortado, y el envío sigue siendo un POST normal
+          del formulario: así el alta es una sola operación y los errores se
+          pintan sobre lo capturado, sin perder nada. */}
+      {LUGARES.map((n) => TAMANOS.map((t) => (
+        <input type="file" name={`${t.nombre}-${n}`} class="tamano-oculto" hidden />
+      )))}
+
+      <div class="previa-alta" id="previa-alta" hidden>
+        <p class="rotulo-previa">Así se van a guardar</p>
+        {/* La tira la llena el navegador. Sus estilos viven en global.css, no
+            aquí: lo que crea JavaScript no lleva la marca con que Astro limita
+            los estilos a una pantalla, y aquí saldría sin formato. */}
+        <ul class="tira-previa" id="tira-previa"></ul>
+        <p class="detalle-previa" id="detalle-alta"></p>
+      </div>
+    </fieldset>
+  )}
+
+</form>
+
+  {/* Aquí entra lo que la pantalla quiera poner antes de los botones. En la
+      ficha son las fotografías; en el alta no hay nada todavía, y un hueco
+      vacío no pinta nada. */}
+  <slot />
+
+  <div class="acciones">
+    <button type="submit" form="datos-ejemplar" class="boton boton-solido">
+      {esAlta ? 'Dar de alta' : 'Guardar cambios'}
+    </button>
+    <a class="boton boton-linea" href="/admin/catalogo">Cancelar</a>
+  </div>
+</div>
+
+<script>
+  // Mejoras de comodidad. Todo lo que hacen aquí lo vuelve a comprobar el
+  // servidor: si el JavaScript no corre, el formulario sigue siendo correcto.
+
+  // 1. El folio se escribe sólo cuando se desbloquea.
+  const folio = document.getElementById('folio');
+  const desbloqueo = document.getElementById('desbloqueo');
+  if (folio && desbloqueo) {
+    const aplicar = () => { folio.readOnly = !desbloqueo.checked; };
+    // readOnly (no disabled) mantiene el campo dentro del envío y no estorba
+    // a la validación del navegador.
+    desbloqueo.addEventListener('change', aplicar);
+    aplicar();
+  }
+
+  // 2. Las pastillas de color siguen al valor elegido.
+  //    Los textos y tonos viven en el propio <option> para no repetir aquí el
+  //    catálogo: si mañana se agrega un estado, esto no hay que tocarlo.
+  function seguirPastilla(idSelect, idPastilla, tabla) {
+    const select = document.getElementById(idSelect);
+    const pastilla = document.getElementById(idPastilla);
+    if (!select || !pastilla) return;
+
+    const dicho = pastilla.querySelector('.dicho');
+    const aplicar = () => {
+      const fila = tabla[select.value];
+      pastilla.dataset.tono = fila ? fila.tono : 'neutro';
+      if (fila) dicho.textContent = fila.nota;
+    };
+    select.addEventListener('change', aplicar);
+    aplicar();
+  }
+
+  /* El semáforo ya no es un desplegable: se muestra y no se edita, así que no
+     hay pastilla que seguir. `seguirPastilla` se queda para la condición. */
+
+  seguirPastilla('condicion', 'pastilla-condicion', {
+    DISPONIBLE: { tono: 'exito',    nota: 'Se muestra en el catálogo público y admite solicitudes.' },
+    EN_PROCESO: { tono: 'atencion', nota: 'Se muestra, con el botón apagado y registro de interés.' },
+    ADOPTADO:   { tono: 'inactivo', nota: 'Se retira del catálogo público. El registro se conserva.' },
+  });
+
+  // 3. La confirmación sólo se pide cuando el cambio la amerita.
+  const condicion = document.getElementById('condicion');
+  const confirmacion = document.getElementById('confirmacion');
+  if (condicion && confirmacion) {
+    const actual = condicion.dataset.actual;
+    const aplicar = () => {
+      const nueva = condicion.value;
+      const hace_falta = nueva !== actual && (nueva === 'ADOPTADO' || actual === 'ADOPTADO');
+      confirmacion.hidden = !hace_falta;
+    };
+    condicion.addEventListener('change', aplicar);
+    aplicar();
+  }
+
+  // 4. El folio se rellena con ceros al salir del campo.
+  folio?.addEventListener('blur', () => {
+    const limpio = folio.value.trim();
+    if (/^\d{1,5}$/.test(limpio)) folio.value = limpio.padStart(5, '0');
+  });
+
+  /* 5. El folio se comprueba contra el padrón mientras se captura.
+     POR QUÉ: el alta exige fotografía y el navegador vacía los campos de
+     archivo al repintar la página. Sin este aviso, un folio repetido —el
+     error más frecuente, porque el número viene del cuaderno del centro—
+     obliga a volver a elegir la foto. Avisando antes, el envío no se gasta.
+     La comprobación de verdad sigue estando en el servidor: esto es
+     comodidad, no la regla. */
+  const avisoFolio = document.getElementById('aviso-folio');
+  if (folio && avisoFolio) {
+    const centro = document.getElementById('centro');
+    const errorServidor = document.getElementById('error-folio');
+    let turno = 0;
+
+    const pintar = (clase, texto) => {
+      avisoFolio.className = 'aviso-folio ' + clase;
+      avisoFolio.textContent = texto;
+      avisoFolio.hidden = false;
+      folio.setAttribute('aria-invalid', clase === 'ocupado' ? 'true' : 'false');
+      // El error que vino del envío anterior ya no manda: hay respuesta fresca.
+      if (errorServidor) errorServidor.hidden = true;
+    };
+
+    const consultar = async () => {
+      const limpio = folio.value.trim();
+      if (!/^\d{1,5}$/.test(limpio)) { avisoFolio.hidden = true; return; }
+
+      /* Cada consulta se queda con su número de turno. Si mientras llega la
+         respuesta se escribió otro folio, esta respuesta ya no vale y se
+         descarta: sin esto, una consulta lenta puede pintar encima de una
+         más reciente. */
+      const mio = ++turno;
+      avisoFolio.hidden = true;
+
+      const direccion = new URL(avisoFolio.dataset.consulta, location.origin);
+      direccion.searchParams.set('folio', limpio);
+      // El capturista no manda centro: el servidor le impone el suyo.
+      if (centro) direccion.searchParams.set('centro', centro.value);
+
+      try {
+        const r = await fetch(direccion);
+        if (!r.ok || mio !== turno) return;
+        const dato = await r.json();
+        if (mio !== turno) return;
+
+        if (dato.estado === 'ocupado') {
+          pintar('ocupado', `Ese folio ya lo tiene «${dato.nombre}» en este centro. Usa otro.`);
+        } else if (dato.estado === 'libre') {
+          pintar('libre', 'Folio libre en este centro.');
+        }
+      } catch {
+        // Sin red no se dice nada: el servidor lo comprobará al guardar.
+      }
+    };
+
+    folio.addEventListener('blur', consultar);
+    centro?.addEventListener('change', consultar);
+  }
+</script>
+
+<script>
+  /* Recorta las fotografías del alta y las deja en los campos ocultos.
+     Comparte el recorte con la pantalla de fotografías: `cliente/fotografias.js`.
+
+     Se usa `DataTransfer` para meter los recortes en campos de archivo reales.
+     Es lo que permite que el envío siga siendo un POST normal del formulario,
+     sin fetch y sin perder el pintado de errores del servidor. */
+  import { prepararTamanos } from '../cliente/fotografias.js';
+  import { TAMANOS, MAXIMO_POR_EJEMPLAR } from '../compartido/fotografias-medidas.js';
+
+  const entrada = document.getElementById('foto-alta');
+  if (entrada) {
+    const previa = document.getElementById('previa-alta');
+    const tira = document.getElementById('tira-previa');
+    const detalle = document.getElementById('detalle-alta');
+    const fallo = document.getElementById('error-fotos');
+    let urls = [];
+
+    const campo = (tamano, n) => document.querySelector(`input[name="${tamano}-${n}"]`);
+
+    /* Deja todo como al principio. Se llama antes de cada selección y cuando
+       algo sale mal: media selección cargada es peor que ninguna, porque el
+       servidor recibiría fotografías que la persona creyó descartadas. */
+    const limpiar = () => {
+      for (const u of urls) URL.revokeObjectURL(u);
+      urls = [];
+      tira.replaceChildren();
+      previa.hidden = true;
+      for (let n = 1; n <= MAXIMO_POR_EJEMPLAR; n++) {
+        for (const t of TAMANOS) campo(t.nombre, n).value = '';
+      }
+    };
+
+    const avisar = (texto) => {
+      fallo.textContent = texto;
+      fallo.hidden = false;
+      entrada.value = '';
+    };
+
+    entrada.addEventListener('change', async () => {
+      limpiar();
+      fallo.hidden = true;
+
+      const archivos = Array.from(entrada.files ?? []);
+      if (archivos.length === 0) return;
+
+      if (archivos.length > MAXIMO_POR_EJEMPLAR) {
+        avisar(
+          `Un ejemplar admite ${MAXIMO_POR_EJEMPLAR} fotografías como máximo, ` +
+          `y elegiste ${archivos.length}. Vuelve a elegir.`
+        );
+        return;
+      }
+
+      let bytes = 0;
+      for (let i = 0; i < archivos.length; i++) {
+        const n = i + 1;
+        let preparada;
+        try {
+          preparada = await prepararTamanos(archivos[i]);
+        } catch {
+          // Un archivo ilegible invalida la selección entera: quedarse con los
+          // anteriores dejaría al ejemplar con menos fotos de las que se pidió
+          // sin que nadie lo note.
+          limpiar();
+          avisar(`No se pudo leer «${archivos[i].name}» como imagen. Vuelve a elegir.`);
+          return;
+        }
+
+        bytes += preparada.bytes;
+
+        for (const t of TAMANOS) {
+          const caja = new DataTransfer();
+          caja.items.add(
+            new File([preparada.blobs[t.nombre]], `${t.nombre}.jpg`, { type: 'image/jpeg' })
+          );
+          campo(t.nombre, n).files = caja.files;
+        }
+
+        const url = URL.createObjectURL(preparada.blobs.tarjeta);
+        urls.push(url);
+
+        const pieza = document.createElement('li');
+        const imagen = document.createElement('img');
+        imagen.src = url;
+        imagen.width = 480;
+        imagen.height = 360;
+        imagen.alt = n === 1
+          ? 'Vista previa de la portada'
+          : `Vista previa de la fotografía ${n}`;
+        const rotulo = document.createElement('span');
+        rotulo.className = 'rotulo-orden';
+        rotulo.textContent = n === 1 ? 'Portada' : `Fotografía ${n}`;
+        pieza.append(imagen, rotulo);
+        tira.append(pieza);
+      }
+
+      detalle.textContent =
+        `${archivos.length === 1 ? 'Una fotografía' : archivos.length + ' fotografías'}, ` +
+        `cuatro tamaños de cada una, ${Math.round(bytes / 1024)} kB en total.`;
+      previa.hidden = false;
+    });
+  }
+</script>
+
+<style>
+  .formulario { max-width: var(--ancho-lectura); }
+  /* Tres bloques pegados se leen como uno. 30 px entre ellos. */
+  fieldset { border: 1px solid var(--linea); border-radius: 10px; padding: 20px 20px 24px; margin: 0 0 30px; }
+  legend {
+    font-size: 0.8125rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--gris); padding-inline: 8px; font-weight: 700;
+  }
+  .nota-bloque { color: var(--gris); font-size: 0.875rem; margin: 0 0 16px; }
+
+  /* Rejilla de campos.
+     `align-items: start` evita que un campo con texto de ayuda estire a sus
+     vecinos, y el margen de separación se limita a los campos apilados: dentro
+     de una fila, Edad, Sexo y Talla son hermanos, y si les cayera ese margen
+     el primero quedaría 16 px más arriba que los otros dos. Ese era el
+     desajuste que se veía en pantalla. */
+  .filas {
+    display: grid; gap: 16px; align-items: start;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+  .filas.tres { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  fieldset > .campo + .campo, .filas + .campo, .campo + .filas { margin-top: 16px; }
+
+  /* El desbloqueo del folio ocupa el ancho completo de la rejilla: encerrado
+     en una columna dejaba medio bloque vacío a su izquierda. */
+  .desbloqueo { grid-column: 1 / -1; }
+
+  label { display: block; font-size: 0.8125rem; font-weight: 500; color: var(--texto); margin-bottom: 5px; }
+  input[type="text"], input:not([type]), select {
+    width: 100%; padding: 10px 12px; font-family: var(--cuerpo); font-size: 0.9375rem;
+    border: 1px solid var(--linea-campo); border-radius: 6px; background: var(--blanco); color: var(--texto);
+  }
+  input[readonly] { background: #F4F2EF; color: var(--gris); }
+  [aria-invalid="true"] { border-color: var(--alto); }
+
+  .fijo {
+    margin: 0; padding: 10px 12px; border: 1px solid var(--linea-campo); border-radius: 6px;
+    background: #F4F2EF; color: var(--gris); font-size: 0.9375rem;
+  }
+
+  .ayuda { font-size: 0.8125rem; color: var(--gris-claro); margin: 5px 0 0; }
+
+  /* Aviso vivo del folio. Ocupado usa el guinda del sistema porque impide
+     guardar; libre usa el verde de confirmación, más discreto: es una
+     tranquilidad, no un logro. */
+  .aviso-folio { font-size: 0.8125rem; margin: 5px 0 0; font-weight: 500; }
+  .aviso-folio.ocupado { color: var(--alto); }
+  .aviso-folio.libre { color: var(--exito); font-weight: 400; }
+  .error { font-size: 0.8125rem; color: var(--alto); margin: 5px 0 0; font-weight: 500; }
+  .error-general {
+    border-left: 3px solid var(--alto); background: var(--crema);
+    padding: 12px 14px; margin: 0 0 18px; color: var(--alto);
+  }
+
+  /* Advertencias: tono de atención, no de error. Lo que piden es cuidado,
+     no corrección. El guinda queda reservado para lo que está mal. */
+  .desbloqueo, .confirmacion {
+    margin: 14px 0 0; padding: 12px 14px; border-radius: 6px;
+    border-left: 3px solid var(--atencion); background: var(--atencion-fondo);
+  }
+
+  /* --- Pastilla de estado --------------------------------------------------
+     Dice con el color lo que ya dice con la palabra: verde abre paso, ámbar
+     pide cuidado, gris está fuera del flujo. Nunca sólo con el color: el
+     punto va acompañado siempre del texto, porque quien no lo distingue debe
+     poder leer lo mismo. */
+  .pastilla {
+    display: flex; align-items: flex-start; gap: 8px;
+    margin: 8px 0 0; padding: 8px 10px; border-radius: 6px;
+    font-size: 0.8125rem; line-height: 1.45;
+    background: var(--inactivo-fondo); color: var(--gris);
+    border-left: 3px solid var(--inactivo);
+  }
+  .pastilla .punto {
+    width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; flex: none;
+    background: var(--inactivo);
+  }
+  .pastilla[data-tono="exito"] {
+    background: var(--exito-fondo); border-left-color: var(--exito);
+  }
+  .pastilla[data-tono="exito"] .punto { background: var(--exito); }
+  .pastilla[data-tono="atencion"] {
+    background: var(--atencion-fondo); border-left-color: var(--atencion);
+  }
+  .pastilla[data-tono="atencion"] .punto { background: var(--atencion); }
+  .pastilla[data-tono="inactivo"] { background: var(--inactivo-fondo); }
+  .desbloqueo label, .confirmacion label {
+    display: flex; align-items: center; gap: 8px; font-weight: 500; margin: 0;
+  }
+  .desbloqueo input, .confirmacion input { width: auto; }
+  .advertencia { display: block; font-size: 0.8125rem; color: var(--gris); margin-top: 6px; }
+
+  .acciones { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 28px; }
+
+  .previa-alta { margin: 14px 0 0; padding: 14px; background: var(--crema); border-radius: 10px; }
+  .rotulo-previa {
+    font-size: 0.6875rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--dorado-texto); margin: 0 0 8px;
+  }
+  /* La tira de vista previa se pinta desde JavaScript, así que sus estilos
+     NO pueden vivir aquí: lo que crea el navegador no lleva la marca con que
+     Astro limita los estilos a un archivo. Están en global.css, como
+     `.tira-previa`. Es el mismo caso que los mensajes de error de campo. */
+  .detalle-previa { font-size: 0.8125rem; color: var(--gris-claro); margin: 8px 0 0; }
+</style>

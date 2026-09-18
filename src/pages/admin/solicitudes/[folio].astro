@@ -1,0 +1,301 @@
+---
+/* Ficha de una solicitud de adopción.
+ *
+ * Aquí se ven la CURP y el domicilio, así que abrir esta página deja un
+ * apunte en bitácora: qué solicitud, quién la vio, cuándo y desde qué IP.
+ * En un sujeto obligado eso no es opcional.
+ */
+export const prerender = false;
+
+import Administracion from '../../../layouts/Administracion.astro';
+import {
+  obtener, cambiarEstado, historial, registrarAccesoADatoPersonal,
+  ESTADOS, etiquetaEstado,
+} from '../../../servidor/solicitudes-admin.js';
+import {
+  PREGUNTAS_UNICAS, PREGUNTAS_MULTIPLES, LETRAS_MULTIPLES,
+} from '../../../servidor/cuestionario.js';
+import { urlFoto } from '../../../servidor/fotografias.js';
+
+const persona = Astro.locals.persona;
+const { folio } = Astro.params;
+const ip = Astro.request.headers.get('cf-connecting-ip');
+
+let solicitud = await obtener(persona, folio);
+if (!solicitud) return new Response(null, { status: 404 });
+
+let aviso = null;
+let error = null;
+
+if (Astro.request.method === 'POST') {
+  const datos = await Astro.request.formData();
+  const nuevo = String(datos.get('estado') ?? '');
+  const nota = String(datos.get('nota') ?? '').trim();
+
+  const resultado = await cambiarEstado(persona, solicitud, nuevo, nota, ip);
+
+  if (resultado.error) {
+    error = resultado.error;
+  } else if (resultado.sinCambios) {
+    aviso = 'La solicitud ya estaba en ese estado.';
+  } else {
+    aviso = `Estado cambiado a «${etiquetaEstado(nuevo)}».`;
+    solicitud = await obtener(persona, folio);
+  }
+}
+
+// El apunte va después de resolver el POST, para que un cambio de estado no
+// genere dos registros distintos de la misma visita.
+await registrarAccesoADatoPersonal(solicitud.id, persona, ip);
+
+const bitacora = await historial(solicitud.id);
+
+const preguntas = [...PREGUNTAS_UNICAS, ...PREGUNTAS_MULTIPLES].sort((a, b) => a.numero - b.numero);
+
+function respuesta(pregunta) {
+  if (pregunta.prefijo) {
+    const elegidas = pregunta.opciones.filter(
+      (_, i) => solicitud[`${pregunta.prefijo}_${LETRAS_MULTIPLES[i]}`]
+    );
+    return elegidas.map(([clave, texto]) => `${clave}) ${texto}`);
+  }
+  const clave = solicitud[pregunta.campo];
+  const opcion = pregunta.opciones.find(([c]) => c === clave);
+  return opcion ? [`${opcion[0]}) ${opcion[1]}`] : ['—'];
+}
+
+const fecha = (iso) =>
+  iso ? new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+---
+<Administracion titulo={`Solicitud ${solicitud.folio}`} persona={persona} ancho="lectura">
+  <p class="migaja"><a href="/admin/solicitudes">‹ Solicitudes</a></p>
+
+  <div class="titulo">
+    <div>
+      <p class="folio">{solicitud.folio}</p>
+      <h1>{solicitud.nombres} {solicitud.primer_apellido} {solicitud.segundo_apellido}</h1>
+      <p class="recibida">Recibida el {fecha(solicitud.recibida_en)}</p>
+    </div>
+    <span class:list={['estado', `estado-${solicitud.estado.toLowerCase()}`]}>
+      {etiquetaEstado(solicitud.estado)}
+    </span>
+  </div>
+
+  {solicitud.es_ficticio === 1 && (
+    <p class="ficticia">
+      Solicitud de prueba. Se generó con una identidad simulada y no corresponde a una
+      persona real.
+    </p>
+  )}
+
+  {aviso && <p class="aviso">{aviso}</p>}
+  {error && <p class="error-general">{error}</p>}
+
+  <section class="bloque">
+    <h2>Ser sintiente solicitado</h2>
+    <p class="explica">
+      Estos datos son la instantánea del registro al momento del envío. Si el ejemplar
+      cambió después, aquí se conserva lo que la persona solicitó.
+    </p>
+    <div class="con-retrato">
+      <img class="retrato" src={urlFoto(solicitud.portada)} alt=""
+           width="480" height="360" />
+    <dl class="datos">
+      <div><dt>Nombre</dt><dd>{solicitud.snap_nombre}</dd></div>
+      <div><dt>Folio interno</dt><dd>{solicitud.snap_folio_interno}</dd></div>
+      <div><dt>Centro de origen</dt><dd>{solicitud.snap_centro_origen}</dd></div>
+      <div><dt>Centro al solicitar</dt><dd>{solicitud.snap_centro_actual}</dd></div>
+      <div><dt>Edad</dt><dd>{solicitud.snap_edad}</dd></div>
+      <div><dt>Sexo</dt><dd>{solicitud.snap_sexo}</dd></div>
+      <div><dt>Talla</dt><dd>{solicitud.snap_talla}</dd></div>
+      <div><dt>Semáforo</dt><dd>{solicitud.snap_semaforo}</dd></div>
+      <div><dt>Condición al solicitar</dt><dd>{solicitud.snap_condicion}</dd></div>
+    </dl>
+    </div>
+    {solicitud.ejemplar_slug ? (
+      <p><a href={`/admin/ejemplar/${solicitud.ejemplar_slug}`}>Ver el registro vigente del ejemplar ›</a></p>
+    ) : (
+      <p class="explica">El ejemplar ya no existe en el catálogo.</p>
+    )}
+  </section>
+
+  <section class="bloque sensible">
+    <h2>Persona solicitante</h2>
+    <p class="explica">
+      Datos personales. Tu consulta de esta ficha quedó registrada en la bitácora.
+    </p>
+    <dl class="datos">
+      <div><dt>CURP</dt><dd class="mono">{solicitud.curp}</dd></div>
+      <div><dt>Teléfono celular</dt><dd>{solicitud.telefono_celular}</dd></div>
+      <div><dt>Correo electrónico</dt><dd>{solicitud.correo_electronico}</dd></div>
+      <div class="ancho"><dt>Domicilio</dt><dd>
+        {solicitud.calle} {solicitud.numero_exterior}
+        {solicitud.numero_interior && `, int. ${solicitud.numero_interior}`},
+        {` ${solicitud.colonia}, ${solicitud.alcaldia}, C.P. ${solicitud.codigo_postal}`}
+      </dd></div>
+    </dl>
+  </section>
+
+  <section class="bloque">
+    <h2>Cuestionario de valoración</h2>
+    {preguntas.map((pregunta) => (
+      <div class="pregunta">
+        <p class="enunciado">
+          <span class="numero">{pregunta.numero}.</span> {pregunta.titulo}
+        </p>
+        <ul class="respuestas">
+          {respuesta(pregunta).map((linea) => <li>{linea}</li>)}
+        </ul>
+      </div>
+    ))}
+  </section>
+
+  <section class="bloque">
+    <h2>Seguimiento</h2>
+    <p class="explica">
+      Estado actual: <strong>{etiquetaEstado(solicitud.estado)}</strong>
+      {solicitud.estado_en && ` · cambiado el ${fecha(solicitud.estado_en)}`}
+      {solicitud.estado_por_nombre && ` por ${solicitud.estado_por_nombre}`}
+    </p>
+
+    <form method="POST" class="cambio">
+      <div class="campo">
+        <label for="estado">Cambiar a <span class="req" aria-hidden="true">*</span></label>
+        <select id="estado" name="estado" required>
+          {ESTADOS.map((e) => (
+            <option value={e.clave} selected={e.clave === solicitud.estado}>
+              {e.etiqueta} — {e.ayuda}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div class="campo">
+        <label for="nota">Nota <span class="opcional">(queda en la bitácora)</span></label>
+        <input type="text" id="nota" name="nota" maxlength="300"
+               placeholder="Por ejemplo: se contactó por teléfono, quedó de confirmar" />
+      </div>
+      <button type="submit" class="boton boton-solido">Guardar</button>
+    </form>
+  </section>
+
+  <section class="bloque">
+    <h2>Bitácora</h2>
+    {bitacora.length === 0 ? (
+      <p class="explica">Sin movimientos registrados.</p>
+    ) : (
+      <ol class="historial">
+        {bitacora.map((b) => (
+          <li>
+            <span class="cuando">{fecha(b.ocurrido_en)}</span>
+            <span class="que">
+              {b.accion === 'CAMBIO' && (
+                <>Estado: {etiquetaEstado(b.valor_anterior)} → {etiquetaEstado(b.valor_nuevo)}
+                {b.respaldo && <em> · {b.respaldo}</em>}</>
+              )}
+              {b.accion === 'ACCESO_DATO_PERSONAL' && <>Consulta de datos personales</>}
+            </span>
+            <span class="quien">{b.usuario ?? 'sistema'}</span>
+          </li>
+        ))}
+      </ol>
+    )}
+  </section>
+</Administracion>
+
+<style>
+
+  .titulo {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+  }
+  .folio { font-family: ui-monospace, monospace; font-size: 0.8125rem; color: var(--gris-claro); margin: 0; }
+  h1 { color: var(--principal); font-size: 1.5rem; margin: 2px 0 0; overflow-wrap: anywhere; }
+  .recibida { margin: 4px 0 0; font-size: 0.875rem; color: var(--gris); }
+
+  .estado {
+    font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase;
+    border: 1px solid var(--linea); border-radius: 999px; padding: 5px 14px; color: var(--gris);
+  }
+  /* El color dice en qué punto del trámite está: guinda lo que espera
+     atención, ámbar lo que va en camino, verde lo resuelto a favor, gris lo
+     que ya salió del flujo. */
+  .estado-recibida    { border-color: var(--alto); background: var(--alto-fondo); color: var(--alto); }
+  .estado-en_revision { border-color: var(--atencion); background: var(--atencion-fondo); color: var(--gris); }
+  .estado-contactada  { border-color: var(--atencion); background: var(--atencion-fondo); color: var(--gris); }
+  .estado-aprobada    { border-color: var(--exito); background: var(--exito-fondo); color: var(--gris); }
+  .estado-rechazada   { border-color: var(--linea); background: var(--inactivo-fondo); color: var(--inactivo); }
+  .estado-concluida   { background: var(--crema); }
+
+  .ficticia {
+    border-left: 3px solid var(--principal); background: var(--crema);
+    padding: 12px 14px; color: var(--principal); margin: 0 0 18px; max-width: var(--ancho-lectura);
+  }
+  .aviso {
+    border-left: 3px solid var(--dorado); background: var(--crema);
+    padding: 12px 14px; margin: 0 0 18px; color: var(--gris); max-width: var(--ancho-lectura);
+  }
+  .error-general {
+    border-left: 3px solid var(--alto); background: var(--crema);
+    padding: 12px 14px; margin: 0 0 18px; color: var(--alto); max-width: var(--ancho-lectura);
+  }
+
+  /* Cinco cajas seguidas y del mismo color se leen como una lista, no como
+     cinco cosas distintas. Más aire entre ellas y el título del sistema.
+     El rótulo de cada uno lo pinta `.apartado > h2` desde global.css. */
+  .bloque {
+    border: 1px solid var(--linea); border-radius: 10px;
+    padding: 20px 20px 22px; margin-bottom: 28px; max-width: 52rem;
+  }
+  .bloque.sensible { border-left: 4px solid var(--alto); }
+  .bloque h2 {
+    font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--gris); margin: 0 0 14px;
+  }
+  .explica { margin: 0 0 14px; font-size: 0.875rem; color: var(--gris-claro); }
+
+  .con-retrato { display: grid; gap: 18px; grid-template-columns: 1fr; }
+  @media (min-width: 640px) { .con-retrato { grid-template-columns: 150px 1fr; } }
+  .retrato {
+    width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: top center;
+    border-radius: 8px; background: var(--crema); display: block;
+  }
+
+  .datos { display: grid; gap: 12px 20px; margin: 0; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .datos .ancho { grid-column: 1 / -1; }
+  .datos dt {
+    font-size: 0.625rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--gris-claro); margin: 0;
+  }
+  .datos dd { margin: 2px 0 0; color: var(--texto); font-size: 0.9375rem; }
+  .mono { font-family: ui-monospace, monospace; }
+
+  .pregunta { padding: 12px 0; border-bottom: 1px solid var(--linea); }
+  .pregunta:last-child { border-bottom: 0; padding-bottom: 0; }
+  .enunciado { margin: 0 0 6px; font-weight: 500; color: var(--texto); }
+  .numero { color: var(--principal); }
+  .respuestas { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+  .respuestas li { color: var(--gris); font-size: 0.9375rem; }
+
+  .cambio { display: grid; gap: 14px; align-items: end; }
+  @media (min-width: 720px) { .cambio { grid-template-columns: 1fr 1fr auto; } }
+  .campo label { display: block; font-size: 0.8125rem; font-weight: 500; margin-bottom: 5px; }
+  .opcional { font-weight: 400; color: var(--gris-claro); }
+  .campo select, .campo input {
+    width: 100%; padding: 10px 12px; font-family: var(--cuerpo); font-size: 0.9375rem;
+    border: 1px solid var(--linea-campo); border-radius: 6px; background: var(--blanco);
+    color: var(--texto);
+  }
+
+  .historial { list-style: none; padding: 0; margin: 0; }
+  .historial li {
+    display: grid; gap: 2px 14px; padding: 9px 0;
+    border-bottom: 1px solid var(--linea); font-size: 0.875rem;
+  }
+  @media (min-width: 640px) {
+    .historial li { grid-template-columns: 11rem 1fr auto; align-items: baseline; }
+  }
+  .cuando { color: var(--gris-claro); font-size: 0.8125rem; }
+  .que { color: var(--texto); }
+  .que em { color: var(--gris); }
+  .quien { color: var(--gris-claro); font-size: 0.8125rem; }
+</style>
