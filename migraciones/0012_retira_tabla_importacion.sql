@@ -1,0 +1,41 @@
+-- ---------------------------------------------------------------------------
+-- 0012 — Retira la tabla `importacion`
+--
+-- QUÉ ERA
+--
+-- La creó la migración 0001 para registrar cada carga masiva desde CSV hecha
+-- desde la administración: nombre del archivo, huella, quién la corrió, cuándo
+-- empezó y terminó, cuántos renglones entraron, cuántos actualizaron, cuántos
+-- fallaron, y un reporte.
+--
+-- POR QUÉ SE VA
+--
+-- Esa funcionalidad se retiró del alcance (D-52): los usuarios no cargan por
+-- lotes. El padrón se carga UNA VEZ, desde `carga-inicial/`, que no es una
+-- función del sistema sino una herramienta de arranque: valida la plantilla,
+-- genera las fotografías, escribe una migración y se acaba. No hay nada que
+-- registrar en una tabla, porque no hay una operación que se repita.
+--
+-- La funcionalidad se fue en su momento; la tabla se quedó. Al auditar el
+-- código quedó a la vista: **ninguna línea del proyecto la nombra**, y tiene
+-- cero renglones.
+--
+-- POR QUÉ NO SE DEJA «POR SI ACASO»
+--
+-- Porque el esquema es documentación, y esta tabla promete algo que el sistema
+-- no hace. Quien reciba el proyecto —ADIP— vería once columnas describiendo un
+-- registro de importaciones y tendría que averiguar si falta el código o sobra
+-- la tabla. Es el mismo criterio que este proyecto aplica a los textos: lo que
+-- describe el sistema tiene que ser cierto.
+--
+-- Si algún día vuelve la carga masiva, la definición completa sigue estando en
+-- `migraciones/0001_inicial.sql`: recrearla es copiar y pegar.
+--
+-- SEGURIDAD
+--
+-- Ninguna otra tabla la referencia —se comprobó en `sqlite_master`— así que no
+-- hay llaves foráneas que se rompan. Ella sí apuntaba a `usuario(id)`, y
+-- soltar la tabla que apunta nunca afecta a la apuntada.
+-- ---------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS importacion;

@@ -42,7 +42,6 @@ const antiguedad = (iso) => {
   return d === 0 ? 'hoy' : d === 1 ? '1 día' : `${d} días`;
 };
 
-const fecha = (iso) => new Date(iso).toLocaleDateString('es-MX', { dateStyle: 'medium' });
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
 ---
 <Administracion titulo="Indicadores" persona={persona}>

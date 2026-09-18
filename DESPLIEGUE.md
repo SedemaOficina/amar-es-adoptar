@@ -203,29 +203,36 @@ que no es lo mismo que qué hay realmente en la base. Para verificar la estructu
 npx wrangler d1 execute amar-es-adoptar --remote --file=mantenimiento/verificar-estructura.sql
 ```
 
-### Advertencia: contra la base remota sólo funcionan las migraciones
+### Advertencia: la API de D1 responde de forma intermitente
 
-Al 17 de septiembre de 2026, de los cuatro comandos de Wrangler que tocan la base remota
-**sólo dos funcionan**, con la misma cuenta y el mismo token:
+El 17 y 18 de septiembre de 2026, los comandos que tocan la base remota devolvieron
+`[code: 7403]` —«the given account is not valid or is not authorized»— de forma
+**intermitente y sin patrón**. El mismo comando, con la misma cuenta y el mismo token,
+falla y al repetirlo funciona:
 
-| Comando | Contra la remota |
-|---|---|
-| `d1 migrations apply --remote` | Funciona |
-| `d1 migrations list --remote` | Funciona |
-| `d1 execute --remote --file=…` | `Authentication error [code: 10000]`. `--file` no manda una consulta: sube el archivo por el endpoint de importación, que exige más permisos. |
-| `d1 execute --remote --command "…"` | `[code: 7403]`. Es el endpoint `/query`, y dejó de aceptar este token: **antes sí funcionaba**. |
+| Momento | `d1 execute --remote --command` | `d1 migrations apply --remote` |
+|---|---|---|
+| 17/09 por la tarde | 7403 | Funcionó |
+| 18/09 de madrugada | Funcionó | 7403 |
+| 18/09, un minuto después | — | Funcionó |
 
-**Consecuencia práctica, y conviene leerla como decisión y no como estorbo: la base remota
-sólo se toca por migración.** Cualquier cambio —de estructura o de datos— se escribe como
-archivo en `migraciones/` y se aplica con `migrations apply`. Es lo que se quería de todos
-modos: un cambio corrido a mano sólo existe en la máquina donde se corrió.
+**Ante un 7403, lo primero es repetir el comando.** No es un permiso faltante: `wrangler
+whoami` muestra `d1 (write)` en el alcance del token, y `d1 migrations list --remote`
+responde bien incluso cuando `apply` falla.
 
-Lo que sí se pierde es poder **consultar** la remota desde la terminal. Mientras `/query`
-esté cerrado, su contenido se comprueba por el sitio desplegado, y el estado del almacén de
-fotografías por la pantalla `/admin/almacen`, que funciona igual en local y en producción.
+**No hay que rediseñar el procedimiento alrededor de este fallo.** Se intentó —se dio por
+cerrado el endpoint `/query` y se escribió aquí que la remota «sólo se toca por
+migración»— y era falso: bastaba reintentar. De un solo intento fallido no se deduce una
+regla.
 
-Un error de autorización en uno de estos comandos **no significa que la sesión haya
-vencido**: antes de `wrangler login`, probar otro comando contra el mismo recurso.
+Lo que sí es cierto y no cambia:
+
+- `d1 execute --remote --file=…` devuelve `Authentication error [code: 10000]` de forma
+  consistente, con token OAuth y permisos de administrador. `--file` no manda una consulta:
+  sube el archivo por el endpoint de importación, que exige más permisos. Una sentencia
+  suelta contra la remota se pasa con `--command`.
+- Un error de autorización en un comando **no significa que la sesión haya vencido**: antes
+  de `wrangler login`, repetir el comando y probar otro contra el mismo recurso.
 
 ### Bases que existían antes de este registro
 

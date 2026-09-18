@@ -16,13 +16,16 @@
 -- La lección: UNA MIGRACIÓN NO SE VERIFICA POR UNA COLUMNA. Se verifica
 -- comparando el conjunto completo contra una referencia conocida.
 --
--- VALORES ESPERADOS al 17 de septiembre de 2026, con las migraciones 0001 a
--- 0011 aplicadas:
+-- VALORES ESPERADOS al 18 de septiembre de 2026, con las migraciones 0001 a
+-- 0012 aplicadas:
 --
---   tablas       11
---   columnas    133
+--   tablas       10
+--   columnas    122
 --   indices      10
---   migraciones  11
+--   migraciones  12
+--
+-- La 0012 retiró la tabla `importacion`, que nadie usaba: de ahí que las
+-- tablas bajen de 11 a 10 y las columnas de 133 a 122, que son sus once.
 --
 -- Los índices pasaron de 4 a 10 con la migración 0009, que repuso los seis que
 -- la 0006 se había llevado al rehacer tres tablas sin volver a crearlos. Si
@@ -42,7 +45,7 @@ SELECT
        AND name NOT LIKE 'sqlite_%'
        AND name NOT LIKE '_cf_%')                          AS tablas,
 
-  -- La suma de columnas de las once tablas. No hay forma de recorrerlas en
+  -- La suma de columnas de las diez tablas. No hay forma de recorrerlas en
   -- una sola consulta de SQLite, así que se enumeran.
   (SELECT COUNT(*) FROM pragma_table_info('bitacora'))
   + (SELECT COUNT(*) FROM pragma_table_info('centro'))
@@ -50,7 +53,6 @@ SELECT
   + (SELECT COUNT(*) FROM pragma_table_info('edad'))
   + (SELECT COUNT(*) FROM pragma_table_info('ejemplar'))
   + (SELECT COUNT(*) FROM pragma_table_info('fotografia'))
-  + (SELECT COUNT(*) FROM pragma_table_info('importacion'))
   + (SELECT COUNT(*) FROM pragma_table_info('sexo'))
   + (SELECT COUNT(*) FROM pragma_table_info('solicitud'))
   + (SELECT COUNT(*) FROM pragma_table_info('talla'))

@@ -67,8 +67,9 @@ Todo lo que deba existir en las dos bases se escribe en `migraciones/`. Una sent
 corrida a mano sólo pasó en la máquina donde se corrió, y las comprobaciones no lo detectan:
 `verificar-estructura.sql` compara el esqueleto, no el contenido.
 
-Contra la base remota, además, **sólo funcionan las migraciones**: `d1 execute --remote`
-falla con `--file` (10000) y con `--command` (7403).
+Contra la base remota, `d1 execute --remote --file=…` falla siempre (10000). Y cualquier
+comando puede devolver un 7403 intermitente: **se repite antes de concluir nada**. Ver
+`DESPLIEGUE.md` § 6.
 
 ### Los pasos se entregan con su orden
 
