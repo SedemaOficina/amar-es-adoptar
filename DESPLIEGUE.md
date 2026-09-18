@@ -119,7 +119,10 @@ npx wrangler secret put SESSION_SECRET
 | `LLAVE_*` | No | Proveedor de identidad de la **ciudadanía**. Mismo comportamiento. |
 
 Al llenar las variables del proveedor, éste entra en funcionamiento sin tocar código: es
-lo que convierte el montaje de Llave CDMX en configuración y no en reescritura.
+lo que convierte el montaje de Llave CDMX en configuración y no en reescritura. El
+procedimiento completo —qué pedirle a ADIP, qué direcciones de retorno registrar, cómo
+comprobar que quedó y las dos funciones que podrían requerir ajuste— está en
+[`LLAVE-CDMX.md`](./LLAVE-CDMX.md).
 
 **El dominio no se escribe en el código en ningún punto.** Cuando se requiera una
 dirección absoluta se toma de `site` en `astro.config.mjs`, alimentado por variable de

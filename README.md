@@ -89,6 +89,11 @@ responde como ante una dirección inventada.
 Requisitos, variables de entorno, base de datos y publicación:
 [`DESPLIEGUE.md`](./DESPLIEGUE.md).
 
+## Integración con Llave CDMX
+
+Qué pedirle a ADIP, qué variables llenar, cómo comprobar que quedó y qué es lo único que
+podría requerir tocar código: [`LLAVE-CDMX.md`](./LLAVE-CDMX.md).
+
 ## Titularidad y licencia
 
 [`TITULARIDAD.md`](./TITULARIDAD.md). La licencia de publicación está pendiente de definir
