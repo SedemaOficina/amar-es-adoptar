@@ -32,6 +32,11 @@ respaldos/
 # Lo descartado. La convención del proyecto es que nada se borra del disco: se
 # mueve aquí y Liber lo vacía a mano. Pero es un cesto de basura, no parte del
 # proyecto, y no tiene por qué viajar al repositorio ni a la entrega.
+#
+# Van los dos nombres: el nuevo y el viejo —con espacio—, por si queda algún
+# rastro del anterior en otra máquina. Un nombre con espacio obliga a comillas
+# en cada comando y es una invitación a un `rm` mal escrito.
+_a-borrar/
 a borrar/
 
 # Carga inicial del padrón. Ni las fotografías reales ni lo que el guion genera

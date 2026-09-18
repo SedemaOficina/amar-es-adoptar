@@ -25,7 +25,7 @@ Consult these guides before working on related tasks:
 
 ### Nunca se borran archivos
 
-Nada se elimina del disco. Lo que deje de usarse se mueve a la carpeta `a borrar/`
+Nada se elimina del disco. Lo que deje de usarse se mueve a la carpeta `_a-borrar/`
 en la raíz del proyecto, con una línea en su `LEEME.md` que diga qué es y por qué
 salió. Liber la vacía a mano cuando quiera. Aplica a archivos, carpetas y a lo que
 quede huérfano tras una refactorización.
@@ -37,7 +37,7 @@ quede huérfano tras una refactorización.
 | `migraciones/` | Cambios de estructura de la base. Se aplican en orden, una sola vez. |
 | `mantenimiento/` | Sentencias SQL que se ejecutan a mano en un momento concreto. No son migraciones. |
 | `carga-inicial/` | Plantilla y reglas para la carga del padrón real. |
-| `a borrar/` | Lo retirado, pendiente de que Liber lo elimine. |
+| `_a-borrar/` | Lo retirado, pendiente de que Liber lo elimine. Excluida del repositorio. |
 | `respaldos/` | Volcados de la base antes de tocar producción. No se versiona. |
 
 `public/tipografias/` guarda Cabin y Roboto: el sitio **no** las pide a un servicio
