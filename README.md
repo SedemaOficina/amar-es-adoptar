@@ -96,10 +96,11 @@ con la Dirección Jurídica, antes de la entrega formal.
 
 ## Convenciones
 
-[`CLAUDE.md`](./CLAUDE.md) y `AGENTS.md` tienen el mismo contenido: uno lo lee Claude Code
-y el otro el resto de los asistentes. Recogen la regla de que nada se borra del disco y el
-mapa de carpetas.
+Todo vive en [`CLAUDE.md`](./CLAUDE.md): la regla de que nada se borra del disco, el mapa
+de carpetas y las convenciones de código. `AGENTS.md` es un puntero de tres líneas que
+remite a él, porque distintas herramientas buscan el suyo con distinto nombre.
 
-**Advertencia para quien clone el repositorio:** en el disco donde se escribieron son el
-mismo archivo —un enlace duro—, pero Git no guarda enlaces duros: al clonar salen dos
-archivos independientes. **Si editas uno, edita el otro.**
+**Hay una sola copia a propósito.** Antes eran dos archivos iguales unidos por un enlace
+duro en el disco, y falló en el primer commit: Git no guarda enlaces duros y, además, dio
+uno de los dos caminos por revisado sin volver a leerlo. En el disco parecían idénticos y
+en el repositorio no. Una copia y un puntero no se desincronizan.
