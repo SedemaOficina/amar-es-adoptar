@@ -41,7 +41,26 @@ export function urlDeAutorizacion(url, estado) {
   const destino = new URL(env.OIDC_AUTORIZACION);
   destino.searchParams.set('response_type', 'code');
   destino.searchParams.set('client_id', env.OIDC_CLIENTE_ID);
+  /* LOS DOS NOMBRES DE LA DIRECCIÓN DE RETORNO, A PROPÓSITO.
+   *
+   * El estándar OAuth2 lo llama `redirect_uri`. Llave CDMX lo llama
+   * `redirect_url`, y no es una peculiaridad de una versión vieja: se
+   * comprobó el 18/09/2026 en sus DOS puntos de autorización —el
+   * `oauth.xhtml` que usa el back office de ADIP y el `oauthV2.xhtml` en
+   * vivo—, y los dos aceptan exactamente tres parámetros: `client_id`,
+   * `redirect_url` y `state`.
+   *
+   * Se mandan los dos con el mismo valor. Un proveedor estándar ignora el
+   * que no conoce; Llave CDMX encuentra el suyo. Lo que se gana es que la
+   * autenticación sigue siendo una capa reemplazable —requisito de la
+   * entrega— en lugar de quedar atada a Llave. Lo que se paga es un
+   * parámetro de más, y el riesgo pequeño de que algún proveedor muy
+   * estricto rechace lo que no reconoce.
+   *
+   * `response_type` y `scope` se conservan por la misma razón: Llave no los
+   * usa y los ignora, pero quitarlos nos ataría a Llave. Ver LLAVE-CDMX.md. */
   destino.searchParams.set('redirect_uri', direccionDeRetorno(url));
+  destino.searchParams.set('redirect_url', direccionDeRetorno(url));
   destino.searchParams.set('scope', env.OIDC_ALCANCE || 'openid profile email');
   destino.searchParams.set('state', estado);
   return destino.toString();
@@ -56,6 +75,9 @@ export async function identificarConCodigo(url, codigo) {
       grant_type: 'authorization_code',
       code: codigo,
       redirect_uri: direccionDeRetorno(url),
+      // El mismo motivo que arriba: los dos nombres, por si el canje también
+      // espera el suyo. Ver el comentario de `urlDeAutorizacion`.
+      redirect_url: direccionDeRetorno(url),
       client_id: env.OIDC_CLIENTE_ID,
       client_secret: env.OIDC_CLIENTE_SECRETO ?? '',
     }),
