@@ -89,6 +89,11 @@ responde como ante una dirección inventada.
 Requisitos, variables de entorno, base de datos y publicación:
 [`DESPLIEGUE.md`](./DESPLIEGUE.md).
 
+## Mapa del sistema
+
+Dónde está cada cosa, qué ruta atiende qué, qué módulo es dueño de qué regla y cuáles son
+las decisiones de arquitectura que no conviene deshacer: [`ARQUITECTURA.md`](./ARQUITECTURA.md).
+
 ## Integración con Llave CDMX
 
 Qué pedirle a ADIP, qué variables llenar, cómo comprobar que quedó y qué es lo único que
